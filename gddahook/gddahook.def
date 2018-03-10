@@ -1,0 +1,7 @@
+LIBRARY gddahook
+
+EXPORTS	
+	MapleCreateDevice=__MapleCreateDevice				@2
+	MapleEnumerateDevices=__MapleEnumerateDevices		@3
+
+
