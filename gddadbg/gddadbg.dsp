@@ -94,8 +94,11 @@ LINK32=link.exe
 # Begin Source File
 
 SOURCE=.\main.cpp
-NODEP_CPP_MAIN_=\
-	".\gddadrv.hpp"\
+DEP_CPP_MAIN_=\
+	"..\gddadrv\gddadrv.hpp"\
+	{$(INCLUDE)}"ceddcdrm.h"\
+	{$(INCLUDE)}"ceddstor.h"\
+	{$(INCLUDE)}"segagdrm.h"\
 	
 # End Source File
 # End Group

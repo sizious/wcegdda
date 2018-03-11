@@ -2,285 +2,10 @@
 #include "error.hpp"
 #include "utils.hpp"
 
-// Critical Section for Threads
-CRITICAL_SECTION g_csCleanerThread;
-CRITICAL_SECTION g_csStreamLoaderThread;
-CRITICAL_SECTION g_csPlayCommandThread;
-
-// CleanerThread
-DWORD WINAPI GDAudioDriver::CleanerThreadProc( LPVOID lpParameter )
+HANDLE
+GDAudioDriver::PlaySoundTrackIndex( int playTrackIndex )
 {
-	GDAudioDriver *gdda = (GDAudioDriver*)lpParameter;
-//	EnterCriticalSection( &g_csCleanerThread );
-	
-#ifdef DEBUG
-	DebugOutput(TEXT("CleanerThread: Start!\r\n"));
-#endif
-
-	for( int contextIndex = 0; contextIndex < MAX_GDDA_CONTEXT; contextIndex++ )
-	{
-		if ( contextIndex != gdda->gddaContextIndex || gdda->isInstanceDestroyed ) // do nothing with current context if the app is running.
-		{
-			GDDA_CONTEXT* gddaContext = gdda->GetContext( contextIndex );
-			bool isContextShouldBeCleaned = ( !gddaContext->fStarted || ( gddaContext->fDonePlaying && !gddaContext->fCleaned ) );
-			if ( isContextShouldBeCleaned )
-			{
-#ifdef DEBUG
-				DebugOutput(TEXT("CleanerThread: Slot #%d will be cleaned up...\r\n"), contextIndex);
-#endif
-				if ( gddaContext->hSoundNotifyEvent )
-				{
-					CloseHandle( gddaContext->hSoundNotifyEvent );
-					gddaContext->hSoundNotifyEvent = NULL;
-				}
-
-				if ( gddaContext->hPlayCommandThread )
-				{
-					CloseHandle( gddaContext->hPlayCommandThread );
-					gddaContext->hPlayCommandThread = NULL;
-				}
-
-				if ( gddaContext->hSoundResumeEvent )
-				{
-					CloseHandle( gddaContext->hSoundResumeEvent );
-					gddaContext->hSoundResumeEvent = NULL;
-				}
-
-				if ( gddaContext->hSoundFile )
-				{
-					CloseHandle( gddaContext->hSoundFile );
-					gddaContext->hSoundFile = NULL;
-				}
-
-				if (gddaContext->pdsbBackground)
-				{
-					gddaContext->pdsbBackground->Stop();
-					gddaContext->pdsbBackground->Release();
-					gddaContext->pdsbBackground = NULL;
-				}
-
-				gddaContext->fCleaned = true;
-				
-#ifdef DEBUG
-				DebugOutput(TEXT("CleanerThread: Slot #%d has been cleaned up!\r\n"), contextIndex);
-#endif				
-			}
-		}
-	}
-
-	gdda->isCleaningFinished = true;
-
-#ifdef DEBUG
-	DebugOutput(TEXT("CleanerThread: Done!\r\n"));
-#endif
-
-//	LeaveCriticalSection( &g_csCleanerThread );
-	return 0;
-}
-
-////////////////////////////////////////////////////////////////////////////////
-// PlayCommandThread Implementation
-////////////////////////////////////////////////////////////////////////////////
-
-BOOL GDAudioDriver::PrepareForStreaming( IDirectSoundBuffer *pdsb, DWORD dwBufferSize, HANDLE *phEventNotify )
-{
-#ifdef DEBUG
-	DebugOutput(TEXT("PlayCommandThread: PlaySoundTrackIndex: PrepareForStreaming...\r\n"));
-#endif
-
-    IDirectSoundNotify	*pdsn;
-	DSBPOSITIONNOTIFY	rgdsbpn[3];
-	GDDA_CONTEXT		*gddaContext = this->GetCurrentContext();
-	
-    // Get a DirectSoundNotify interface so that we can set the events.
-    gddaContext->errLast = pdsb->QueryInterface(IID_IDirectSoundNotify, (void **)&pdsn);
-    if (CheckError(TEXT(DSDEBUG_QUERY_INTERFACE)))
-	{
-        return FALSE;
-	}
-
-    *phEventNotify = CreateEvent( NULL, FALSE, FALSE, NULL );
-
-    rgdsbpn[0].hEventNotify = *phEventNotify;
-    rgdsbpn[1].hEventNotify = *phEventNotify;
-    rgdsbpn[2].hEventNotify = *phEventNotify;
-    rgdsbpn[0].dwOffset     = dwBufferSize / 2;
-    rgdsbpn[1].dwOffset     = dwBufferSize - 2;
-    rgdsbpn[2].dwOffset     = DSBPN_OFFSETSTOP;
-
-    gddaContext->errLast = pdsn->SetNotificationPositions(3, rgdsbpn);
-    if (CheckError(TEXT(DSDEBUG_SET_NOTIFICATION_POSITIONS)))
-	{
-        return FALSE;
-	}
-
-    // No longer need the DirectSoundNotify interface, so release it
-    pdsn->Release();
-
-    return TRUE;
-}
-
-// StreamThread
-DWORD WINAPI GDAudioDriver::StreamThreadProc( LPVOID lpParameter ) 
-{
-	GDAudioDriver *gdda = (GDAudioDriver*) lpParameter;
-//	EnterCriticalSection( &g_csStreamLoaderThread );
-
-#ifdef DEBUG
-	DebugOutput(TEXT("StreamThread: Start!\r\n"));
-#endif
-	
-	DWORD fPlaying;
-    BYTE  bySilence = 0x80;
-    BOOL  fSilence = FALSE;
-    BYTE  *pbyBlock1;
-    BYTE  *pbyBlock2;
-    DWORD ibRead, ibWrite, cbToLock = BUFFERSIZE/2, cbRead;
-    DWORD nBytes1, nBytes2;
-	
-	GDDA_CONTEXT *gddaContext = gdda->GetCurrentContext();
-	
-#ifdef DEBUG
-	DebugOutput(TEXT("StreamThread: Context Slot: #%d!\r\n"), gdda->gddaContextIndex );
-#endif
-	
-    while ( !gddaContext->fExiting )
-    {
-        // Check if there is a sound to play in the background (streamed).
-        if ( gddaContext->fPlayBackgroundSound )
-        {
-			// The background sound buffer (pdsbBackground) is a 1 second long buffer.
-            // It works by playing 500 ms of sound while loading the other 500 ms, and
-            // then swapping sides.  As such, we will wait here until one of the sound
-            // buffer's predefined events (hit halfway mark, hit end of buffer) occurs.
-            WaitForSingleObject( gddaContext->hSoundNotifyEvent, INFINITE );                       
-
-            // Check to see if it's current state is "playing"
-            gddaContext->errLast = gddaContext->pdsbBackground->GetStatus( &fPlaying );
-            if ( gdda->CheckError( TEXT(DSDEBUG_GET_STATUS) ) )
-			{
-                return 0;
-			}
-
-            if ( fPlaying )
-            {
-                // Find out where we currently are playing, and where we last wrote
-                gddaContext->errLast = gddaContext->pdsbBackground->GetCurrentPosition( &ibRead, &ibWrite );
-                if ( gdda->CheckError(TEXT(DSDEBUG_GET_CURRENT_POSITION)) )
-				{
-                    return 0;
-				}
-        
-                // Lock the next half of the sound buffer
-                gddaContext->errLast = gddaContext->pdsbBackground->Lock( ibWrite, cbToLock, (void **)&pbyBlock1, &nBytes1, (void **)&pbyBlock2, &nBytes2, 0 );
-                if ( gdda->CheckError(TEXT(DSDEBUG_LOCK)) )
-				{
-                    return 0;
-				}
-
-                // fSilence is true if we hit the end of the sound file on the
-                // last pass through here.  In that case, fill both blocks with "silence"
-                // and stop the sound from playing.
-                if ( fSilence )
-                {
-                    memset(pbyBlock1, bySilence, nBytes1);
-                    memset(pbyBlock2, bySilence, nBytes2);
-
-                    // After filling it, stop playing
-                    gddaContext->errLast = gddaContext->pdsbBackground->Stop();
-                }
-                else
-                {
-                    // Read the next chunk of bits from the sound file
-                    ReadFile( gddaContext->hSoundFile, pbyBlock1, nBytes1, &cbRead, NULL );
-                    if ( nBytes1 != cbRead )
-                    {
-                        // The file has less data than the size of the first block, so fill the
-                        // remainder with silence - also fill the second block with silence
-                        memset(pbyBlock1 + cbRead, bySilence, nBytes1 - cbRead);
-                        memset(pbyBlock2, bySilence, nBytes2);
-
-                        // Next time through, just play silence.
-                        fSilence = TRUE;
-                    }
-                    else
-                    {
-                        // If there is a second block, then read more of the sound file into that block.
-                        if ( nBytes2 )
-                        {
-                            ReadFile(gddaContext->hSoundFile, pbyBlock2, nBytes2, &cbRead, NULL);
-                            if (nBytes2 != cbRead)
-                            {
-                                // The file has less data than the size of the second block, so
-                                // fill the remainder with silence.
-                                memset(pbyBlock2 + cbRead, bySilence, nBytes2 - cbRead);
-
-                                // next time through, just play silence
-                                fSilence = TRUE;
-                            }
-                        }
-                    }
-                }
-
-                // Done with the sound buffer, so unlock it.
-                gddaContext->errLast = gddaContext->pdsbBackground->Unlock( pbyBlock1, nBytes1, pbyBlock2, nBytes2 );
-                if ( gdda->CheckError(TEXT(DSDEBUG_UNLOCK)) )
-				{
-                    return 0;
-				}
-            }
-            else
-            {
-				// Test if we are still playing the sound
-				if ( gddaContext->fPlayBackgroundSound )
-				{
-					// Break out of this while() loop and exit the thread.
-					break;
-				}
-            }
-        }
-        else
-        {
-            // App doesn't have a sound to play - don't do anything
-			// This is happening when the stream is paused
-			if ( gdda->IsPaused() )
-			{
-#ifdef DEBUG
-				DebugOutput(TEXT("StreamThread is waiting to resume the process...\r\n"));
-#endif
-				if ( gddaContext->pdsbBackground )
-				{
-					gddaContext->pdsbBackground->Stop();
-					WaitForSingleObject( gddaContext->hSoundResumeEvent, INFINITE );
-				}
-#ifdef DEBUG			
-				DebugOutput(TEXT("StreamThread was waked up!\r\n"));
-#endif
-			}
-        }
-    } // while
-
-	// If we are playing the sound, then we completed it.
-	if ( gddaContext->pdsbBackground )
-	{
-		gddaContext->pdsbBackground->Stop();
-	}
-
-	// This flag tell us if the thread is terminated as well.
-	gddaContext->fDonePlaying = true;
-
-#ifdef DEBUG
-	DebugOutput(TEXT("StreamThread: Done!\r\n"));	
-#endif
-
-//	LeaveCriticalSection( &g_csStreamLoaderThread );
-	return 0;
-}
-
-
-
-HANDLE GDAudioDriver::PlaySoundTrackIndex( int playTrackIndex )
-{
+	int currentContextIndex = this->gddaContextIndex;
 	HANDLE hStreamThread = NULL;
 	HANDLE hIOMutex = CreateMutex( NULL, FALSE, NULL );
 	if ( hIOMutex )
@@ -298,28 +23,16 @@ HANDLE GDAudioDriver::PlaySoundTrackIndex( int playTrackIndex )
 		if ( !this->IsReady() )
 		{
 #ifdef DEBUG
-			DebugOutput(TEXT("PlayCommandThread: PlaySoundTrackIndex: Driver is NOT ready!\r\n"));
+			DebugOutput(TEXT("[%d] PlayCommandThread: PlaySoundTrackIndex: Driver is NOT ready!\r\n"), currentContextIndex);
 #endif			
 			goto end;
 		}
 
 		// Getting the WAV file name to load
-#if SH4
-		_stprintf( szWaveFile, TEXT("\\CD-ROM\\GDDA\\TRACK%02d.WAV"), playTrackIndex );
+		GetSoundFilePath( playTrackIndex, szWaveFile );
 
 #ifdef DEBUG
-		if ( !PathFileExists( szWaveFile ) )
-		{
-			_stprintf( szWaveFile, TEXT("\\PC\\Applications\\GDDA\\TRACK%02d.WAV"), playTrackIndex );
-		}
-#endif
-
-#else
-		_stprintf( szWaveFile, TEXT("TRACK%02d.WAV"), playTrackIndex );
-#endif	
-
-#ifdef DEBUG
-		DebugOutput(TEXT("PlayCommandThread: PlaySoundTrackIndex: Launching playback for %s...\r\n"), szWaveFile);
+		DebugOutput(TEXT("[%d] PlayCommandThread: PlaySoundTrackIndex: Launching playback for \"%s\"...\r\n"), currentContextIndex, szWaveFile);
 #endif
 
 		// Load the wav file that we want to stream in the background.
@@ -327,14 +40,14 @@ HANDLE GDAudioDriver::PlaySoundTrackIndex( int playTrackIndex )
 		if ( gddaContext->hSoundFile == INVALID_HANDLE_VALUE )
 		{		
 #ifdef DEBUG
-			DebugOutput(TEXT("PlayCommandThread: PlaySoundTrackIndex: Sorry, file %s doesn't exists...\r\n"), szWaveFile);
+			DebugOutput(TEXT("[%d] PlayCommandThread: PlaySoundTrackIndex: Sorry, file \"%s\" doesn't exists...\r\n"), currentContextIndex, szWaveFile);
 #endif
 			goto end;
 		}
 
 		// Read the first 256 bytes to get file header
 #ifdef DEBUG
-		DebugOutput(TEXT("PlayCommandThread: PlaySoundTrackIndex: Getting the file header...\r\n"));
+		DebugOutput(TEXT("[%d] PlayCommandThread: PlaySoundTrackIndex: Getting the file header for \"%s\"...\r\n"), currentContextIndex, szWaveFile);
 #endif		
 		ReadFile(gddaContext->hSoundFile, byTemp, 256, &cbRead, NULL);
 
@@ -346,7 +59,7 @@ HANDLE GDAudioDriver::PlaySoundTrackIndex( int playTrackIndex )
 
 		// Create the sound buffer
 #ifdef DEBUG
-		DebugOutput(TEXT("PlayCommandThread: PlaySoundTrackIndex: Creating the sound buffer...\r\n"));
+		DebugOutput(TEXT("[%d] PlayCommandThread: PlaySoundTrackIndex: Creating the sound buffer for \"%s\"...\r\n"), currentContextIndex, szWaveFile);
 #endif			
 		gddaContext->pdsbBackground = CreateSoundBuffer(pwfx->nSamplesPerSec, pwfx->wBitsPerSample, BUFFERSIZE);
 		if (!gddaContext->pdsbBackground)
@@ -375,14 +88,14 @@ HANDLE GDAudioDriver::PlaySoundTrackIndex( int playTrackIndex )
 			if (!hStreamThread)
 			{
 #ifdef DEBUG
-				DebugOutput(TEXT("Error calling CreateThread for StreamThread!\r\n"));
+				DebugOutput(TEXT("[%d] Error calling CreateThread for StreamThread!\r\n"), currentContextIndex);
 #endif
 				goto end;
 			}
 #ifdef DEBUG
 			else
 			{
-				DebugOutput(TEXT("StreamThread Created (0x%x)...\r\n"), dwThreadId);
+				DebugOutput(TEXT("[%d] StreamThread Created (0x%x) for \"%s\"...\r\n"), currentContextIndex, dwThreadId, szWaveFile);
 			}
 #endif
 
@@ -397,92 +110,13 @@ end:
 #ifdef DEBUG
 	else
 	{
-		DebugOutput(TEXT("PlayCommandThread: PlaySoundTrackIndex Mutex: Failed to get a valid mutex handle! (Error # = 0x%08x).\r\n"), GetLastError());
+		DebugOutput(TEXT("[%d] PlayCommandThread: PlaySoundTrackIndex Mutex: Failed to get a valid mutex handle! (Error # = 0x%08x).\r\n"), currentContextIndex, GetLastError());
 	}
 #endif
 
 	return hStreamThread;
 }
 
-// PlayCommandThread
-DWORD WINAPI GDAudioDriver::PlayCommandThreadProc( LPVOID lpParameter )
-{
-	GDAudioDriver *gdda = (GDAudioDriver*) lpParameter;
-//	EnterCriticalSection( &g_csPlayCommandThread );
-	
-	unsigned long repeatIndex = 0, soundIndex = 0, repeatCount, soundStartIndex, soundEndIndex;
-	GDDA_CONTEXT *gddaContext = gdda->GetCurrentContext();
-
-#ifdef DEBUG
-	DebugOutput(TEXT("PlayCommandThread: Start, context slot: #%d, repeat count: %d\r\n"), gdda->gddaContextIndex, gddaContext->playRepeatCount);
-#endif
-
-	// Get parsed SEGACD_PLAYTRACK data
-	HANDLE hIOMutex = CreateMutex( NULL, FALSE, NULL );
-	if ( hIOMutex )
-	{
-		WaitForSingleObject( hIOMutex, INFINITE );
-		
-		repeatCount = gddaContext->playRepeatCount;
-		soundStartIndex = gddaContext->playSoundStartIndex;
-		soundEndIndex = gddaContext->playSoundEndIndex;
-
-		ReleaseMutex( hIOMutex );
-	}
-#ifdef DEBUG
-	else
-	{
-		DebugOutput(TEXT("PlayCommandThread: Mutex: Failed to get a valid mutex handle! (Error # = 0x%08x).\r\n"), GetLastError());
-	}
-#endif
-
-	// Playing the parsed SEGACD_PLAYTRACK
-	while( !gddaContext->fExiting && repeatIndex < repeatCount )
-	{
-
-#ifdef DEBUG
-		DebugOutput(TEXT("PlayCommandThread: Executing SEGACD_PLAYTRACK sequence, track start: #%d, track end: #%d, repeat: #%d\r\n"), soundStartIndex, soundEndIndex - 1, repeatCount);
-#endif
-
-		soundIndex = soundStartIndex;
-		while( !gddaContext->fExiting && soundIndex < soundEndIndex )
-		{
-
-#ifdef DEBUG
-			DebugOutput(TEXT("PlayCommandThread: Launching the play of the track #%d (%d of %d)...\r\n"), soundIndex, repeatIndex + 1, repeatCount);
-#endif
-			// Playing the requested track index
-			HANDLE hStreamThread = gdda->PlaySoundTrackIndex( soundIndex );			
-			if ( hStreamThread )
-			{
-
-#ifdef DEBUG
-				DebugOutput(TEXT("PlayCommandThread: Waiting for StreamThread...\r\n"));
-#endif
-
-				WaitForSingleObject( hStreamThread, INFINITE );
-				CloseHandle( hStreamThread );
-			}
-
-			if ( !gdda->IsPaused() )
-			{
-				soundIndex++;
-			}
-		}
-
-		if ( !gdda->IsPaused() )
-		{
-			repeatIndex++;
-		}
-	}
-
-#ifdef DEBUG
-	DebugOutput(TEXT("PlayCommandThread: Sound sequence play finished!\r\nPlayCommandThread: Done!\r\n"));
-#endif
-
-//	LeaveCriticalSection( &g_csPlayCommandThread );
-	return 0;
-}
 
 ////////////////////////////////////////////////////////////////////////////////
 // GDAudioDriver Constructor/Destructor
@@ -505,9 +139,7 @@ GDAudioDriver::GDAudioDriver()
 		this->gddaContextStorage[i].fCleaned = true;
 	}
 
-	InitializeCriticalSection( &g_csCleanerThread );
-	InitializeCriticalSection( &g_csStreamLoaderThread );
-	InitializeCriticalSection( &g_csPlayCommandThread );
+	InitializeCriticalSection( &csThread );
 
 #ifdef DEBUG
 	DebugOutput(TEXT("GDAudioDriver initializing is done!\r\n"));
@@ -531,30 +163,37 @@ GDAudioDriver::~GDAudioDriver()
 #endif
 }
 
-GDDA_CONTEXT* GDAudioDriver::GetContext(int index)
+GDDA_CONTEXT *
+GDAudioDriver::GetContext(int index)
 {
 	return &(this->gddaContextStorage[index]);
 }
 
-GDDA_CONTEXT* GDAudioDriver::GetCurrentContext()
+GDDA_CONTEXT *
+GDAudioDriver::GetCurrentContext()
 {
 	return this->GetContext( this->gddaContextIndex );
 }
 
-void GDAudioDriver::Initialize( LPDIRECTSOUND pds )
+void
+GDAudioDriver::Initialize( LPDIRECTSOUND pds )
 {
 	this->pds = pds;
 }
 
-bool GDAudioDriver::IsReady()
+bool
+GDAudioDriver::IsReady()
 {
 	return ( this->pds != NULL );
 }
 
-void GDAudioDriver::CleanUp()
+void
+GDAudioDriver::CleanUp()
 {
+	int currentContextIndex = this->gddaContextIndex;
+
 #ifdef DEBUG
-	DebugOutput(TEXT("Command Start: Cleanup\r\n"));
+	DebugOutput(TEXT("[%d] Command Start: Cleanup\r\n"), currentContextIndex);
 #endif
 
 	if ( this->hGarbageCollectorThread != NULL ) 
@@ -562,7 +201,7 @@ void GDAudioDriver::CleanUp()
 		if ( this->isCleaningFinished )
 		{
 #ifdef DEBUG
-			DebugOutput(TEXT("CleanerThread was successfully finished, closing handle...\r\n"));
+			DebugOutput(TEXT("[%d] CleanerThread was successfully finished, closing handle...\r\n"), currentContextIndex);
 #endif
 			if( hGarbageCollectorThread )
 			{
@@ -573,7 +212,7 @@ void GDAudioDriver::CleanUp()
 		else
 		{
 #ifdef DEBUG
-			DebugOutput(TEXT("Cleanup command is still running...\r\n"));
+			DebugOutput(TEXT("[%d] Cleanup command is still running...\r\n"), currentContextIndex);
 #endif
 			// Stop here!
 			return;
@@ -586,15 +225,17 @@ void GDAudioDriver::CleanUp()
 	this->hGarbageCollectorThread = CreateThread( NULL, 0, (LPTHREAD_START_ROUTINE) CleanerThreadProc, this, NULL, &dwThreadId );				
 
 #ifdef DEBUG
-	DebugOutput(TEXT("Command End: Cleanup\r\n"));
+	DebugOutput(TEXT("[%d] Command End: Cleanup\r\n"), currentContextIndex);
 #endif
 }
 
-bool GDAudioDriver::ChangePlayingStatus( bool allowPlaying )
+bool
+GDAudioDriver::ChangePlayingStatus( bool allowPlaying )
 {
+	int currentContextIndex = this->gddaContextIndex;
 
 #ifdef DEBUG
-	DebugOutput(TEXT("ChangePlayingStatus request: %s\r\n"), allowPlaying ? TEXT("RESUME") : TEXT("PAUSE"));
+	DebugOutput(TEXT("[%d] ChangePlayingStatus request: %s\r\n"), currentContextIndex, allowPlaying ? TEXT("RESUME") : TEXT("PAUSE"));
 #endif
 
 	bool doAction = false;
@@ -628,7 +269,7 @@ bool GDAudioDriver::ChangePlayingStatus( bool allowPlaying )
 #ifdef DEBUG
 			else
 			{
-				DebugOutput(TEXT("ChangePlayingStatus was IGNORED!\r\n"));
+				DebugOutput(TEXT("[%d] ChangePlayingStatus was IGNORED!\r\n"), currentContextIndex);
 			}
 #endif			
 		}
@@ -640,7 +281,7 @@ bool GDAudioDriver::ChangePlayingStatus( bool allowPlaying )
 	if ( doAction && allowPlaying && gddaContext->hSoundResumeEvent )
 	{
 #ifdef DEBUG
-		DebugOutput(TEXT("Sound Resume Event sent!\r\n"));
+		DebugOutput(TEXT("[%d] Sound Resume Event sent!\r\n"), currentContextIndex);
 #endif
 		SetEvent( gddaContext->hSoundResumeEvent );
 	}
@@ -648,21 +289,26 @@ bool GDAudioDriver::ChangePlayingStatus( bool allowPlaying )
 	return doAction;
 }
 
-bool GDAudioDriver::Pause()
+bool
+GDAudioDriver::Pause()
 {
 	this->ChangePlayingStatus(false);
 	return this->IsPaused();
 }
 
-void GDAudioDriver::Resume()
+void
+GDAudioDriver::Resume()
 {
 	this->ChangePlayingStatus(true);
 }
 
-void GDAudioDriver::Reset()
+void
+GDAudioDriver::Reset()
 {
+	int currentContextIndex = this->gddaContextIndex;
+
 #ifdef DEBUG
-	DebugOutput(TEXT("Reset called on gdda context #%d\r\n"), this->gddaContextIndex);
+	DebugOutput(TEXT("[%d] Command Start: Reset\r\n"), currentContextIndex);
 #endif
 
 	GDDA_CONTEXT *gddaContext = this->GetCurrentContext();
@@ -677,12 +323,17 @@ void GDAudioDriver::Reset()
 	gddaContext->fExiting = false;
 	gddaContext->fPaused = false;
 	gddaContext->errLast = 0;
+
+#ifdef DEBUG
+	DebugOutput(TEXT("[%d] Command End: Reset\r\n"), currentContextIndex);
+#endif
 }
 
-void GDAudioDriver::Play( SEGACD_PLAYTRACK playtrack )
+void
+GDAudioDriver::Play( SEGACD_PLAYTRACK playtrack )
 {
 #ifdef DEBUG
-	DebugOutput(TEXT("Command Start: Play\r\n"));
+	DebugOutput(TEXT("[?] Command Start: Play\r\n"));
 #endif
 
 	DWORD			dwThreadId;
@@ -714,11 +365,13 @@ void GDAudioDriver::Play( SEGACD_PLAYTRACK playtrack )
 		gddaContext = this->GetCurrentContext();
 	}
 	while( !gddaContext->fCleaned );
-	this->Reset();
 
 #ifdef DEBUG
-	DebugOutput(TEXT("  Context slot: #%d...\r\n"), this->gddaContextIndex);
+	DebugOutput(TEXT("[?] Chosen Play context slot: %d\r\n"), this->gddaContextIndex);
 #endif
+
+	// Resetting the chosen slot.
+	this->Reset();
 
 	// Notify the object, the music playback is started
 	gddaContext->fStarted = true;
@@ -741,14 +394,17 @@ void GDAudioDriver::Play( SEGACD_PLAYTRACK playtrack )
     gddaContext->hPlayCommandThread = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE) PlayCommandThreadProc, this, 0, &dwThreadId);	
 
 #ifdef DEBUG
-	DebugOutput(TEXT("Command End: Play\r\n"));
+	DebugOutput(TEXT("[%d] Command End: Play\r\n"), this->gddaContextIndex);
 #endif
 }
 
-void GDAudioDriver::Stop()
+void
+GDAudioDriver::Stop()
 {
+	int currentContextIndex = this->gddaContextIndex;
+
 #ifdef DEBUG
-	DebugOutput(TEXT("Command Start: Stop\r\n"));
+	DebugOutput(TEXT("[%d] Command Start: Stop\r\n"), currentContextIndex);
 #endif
 
 	// We are stopping the current playing sound
@@ -762,7 +418,7 @@ void GDAudioDriver::Stop()
 		if ( gddaContext->fStarted )
 		{
 #ifdef DEBUG
-			DebugOutput(TEXT("Performing stop command...\n"));
+			DebugOutput(TEXT("[%d] Performing stop command...\n"), currentContextIndex);
 #endif
 
 			gddaContext->fExiting = true;
@@ -779,14 +435,15 @@ void GDAudioDriver::Stop()
 #ifdef DEBUG
 	else
 	{
-		DebugOutput(TEXT("Stop Mutex: Failed to get a valid mutex handle! (Error # = 0x%08x).\r\n"), GetLastError());
+		DebugOutput(TEXT("[%d] Stop Mutex: Failed to get a valid mutex handle! (Error # = 0x%08x).\r\n"), currentContextIndex, GetLastError());
 	}
 
-	DebugOutput(TEXT("Command End: Stop\r\n"));
+	DebugOutput(TEXT("[%d] Command End: Stop\r\n"), currentContextIndex);
 #endif
 }
 
-bool GDAudioDriver::IsPaused()
+bool
+GDAudioDriver::IsPaused()
 {
 	bool value = false;
 	
@@ -798,7 +455,7 @@ bool GDAudioDriver::IsPaused()
 		value = ( gddaContext->fPaused && !gddaContext->fExiting && !gddaContext->fDonePlaying );
 
 #ifdef DEBUG
-		DebugOutput(TEXT("IsPaused: %s\n"), value ? TEXT("YES") : TEXT("NO"));
+//		DebugOutput(TEXT("IsPaused: %s\n"), value ? TEXT("YES") : TEXT("NO"));
 #endif
 
 		ReleaseMutex( hIOMutex);
@@ -813,7 +470,8 @@ bool GDAudioDriver::IsPaused()
 	return value;
 }
 
-bool GDAudioDriver::IsPlaying()
+bool
+GDAudioDriver::IsPlaying()
 {
 	bool value = false;
 	HANDLE hIOMutex = CreateMutex( NULL, FALSE, NULL );
@@ -836,7 +494,8 @@ bool GDAudioDriver::IsPlaying()
 	return value;
 }
 
-VOLUME_CONTROL GDAudioDriver::GetVolume()
+VOLUME_CONTROL
+GDAudioDriver::GetVolume()
 {
 	VOLUME_CONTROL volume;
 
@@ -846,7 +505,8 @@ VOLUME_CONTROL GDAudioDriver::GetVolume()
 	return volume;
 }
 
-void GDAudioDriver::SetVolume( VOLUME_CONTROL volume )
+void
+GDAudioDriver::SetVolume( VOLUME_CONTROL volume )
 {
 	UCHAR ucLeftVolume  = volume.PortVolume[0];
 	UCHAR ucRightVolume = volume.PortVolume[1];
@@ -858,45 +518,19 @@ void GDAudioDriver::SetVolume( VOLUME_CONTROL volume )
 //	GetPan
 }
 
-BOOL GDAudioDriver::CheckError(TCHAR *tszErr)
+BOOL
+GDAudioDriver::CheckError(TCHAR *tszErr)
 {
-	GDDA_CONTEXT	*gddaContext = this->GetCurrentContext();
+	GDDA_CONTEXT *gddaContext = this->GetCurrentContext();
+	BOOL isError = (gddaContext->errLast != 0);
 
 #ifdef DEBUG
-    if (gddaContext->errLast != 0)
+    if ( isError )
     {
         DebugOutput(TEXT("CheckError: %s failed (Error # = 0x%08x).\r\n"), tszErr, gddaContext->errLast);        
     }	
 #endif
 
-    return (gddaContext->errLast != 0);
+    return ( isError );
 }
 
-IDirectSoundBuffer * GDAudioDriver::CreateSoundBuffer(int nSamplesPerSec, WORD wBitsPerSample, DWORD dwBufferSize)
-{
-    IDirectSoundBuffer	*pdsb			= NULL;
-    DSBUFFERDESC		dsbd			= {0};
-    WAVEFORMATEX		waveformatex	= {0};
-	GDDA_CONTEXT		*gddaContext	= this->GetCurrentContext();
-
-    // Set up the Wave format description
-    waveformatex.wFormatTag      = WAVE_FORMAT_PCM;
-    waveformatex.nChannels       = 1;
-    waveformatex.nSamplesPerSec  = nSamplesPerSec;
-    waveformatex.wBitsPerSample  = wBitsPerSample;
-    waveformatex.nBlockAlign     = (waveformatex.nChannels * waveformatex.wBitsPerSample) / 8;
-    waveformatex.nAvgBytesPerSec = waveformatex.nSamplesPerSec * waveformatex.nBlockAlign;
-    waveformatex.cbSize          = 0;
-    dsbd.dwSize                  = sizeof(dsbd);
-    dsbd.dwBufferBytes           = dwBufferSize;
-    dsbd.dwFlags                 = DSBCAPS_CTRLDEFAULT | DSBCAPS_LOCSOFTWARE;
-    dsbd.lpwfxFormat             = &waveformatex;
-
-    gddaContext->errLast = pds->CreateSoundBuffer(&dsbd, &pdsb, NULL);
-    if (CheckError(TEXT(DSDEBUG_CREATE_BUFFER)))
-	{
-        return NULL;
-	}
-
-    return pdsb;
-}

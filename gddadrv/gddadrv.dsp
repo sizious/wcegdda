@@ -81,15 +81,70 @@ LIB32=link.exe -lib
 # PROP Default_Filter "cpp;c;cxx;rc;def;r;odl;idl;hpj;bat"
 # Begin Source File
 
+SOURCE=.\clean.cpp
+DEP_CPP_CLEAN=\
+	".\error.hpp"\
+	".\gddadrv.hpp"\
+	{$(INCLUDE)}"ceddcdrm.h"\
+	{$(INCLUDE)}"ceddstor.h"\
+	{$(INCLUDE)}"segagdrm.h"\
+	
+# End Source File
+# Begin Source File
+
+SOURCE=.\dsutils.cpp
+DEP_CPP_DSUTI=\
+	".\error.hpp"\
+	".\gddadrv.hpp"\
+	{$(INCLUDE)}"ceddcdrm.h"\
+	{$(INCLUDE)}"ceddstor.h"\
+	{$(INCLUDE)}"segagdrm.h"\
+	
+# End Source File
+# Begin Source File
+
 SOURCE=.\error.cpp
+DEP_CPP_ERROR=\
+	".\error.hpp"\
+	".\gddadrv.hpp"\
+	{$(INCLUDE)}"ceddcdrm.h"\
+	{$(INCLUDE)}"ceddstor.h"\
+	{$(INCLUDE)}"segagdrm.h"\
+	
 # End Source File
 # Begin Source File
 
 SOURCE=.\gddadrv.cpp
+DEP_CPP_GDDAD=\
+	".\error.hpp"\
+	".\gddadrv.hpp"\
+	".\utils.hpp"\
+	{$(INCLUDE)}"ceddcdrm.h"\
+	{$(INCLUDE)}"ceddstor.h"\
+	{$(INCLUDE)}"segagdrm.h"\
+	
+# End Source File
+# Begin Source File
+
+SOURCE=.\playcmd.cpp
+# End Source File
+# Begin Source File
+
+SOURCE=.\stream.cpp
+DEP_CPP_STREA=\
+	".\error.hpp"\
+	".\gddadrv.hpp"\
+	{$(INCLUDE)}"ceddcdrm.h"\
+	{$(INCLUDE)}"ceddstor.h"\
+	{$(INCLUDE)}"segagdrm.h"\
+	
 # End Source File
 # Begin Source File
 
 SOURCE=.\utils.cpp
+DEP_CPP_UTILS=\
+	".\error.hpp"\
+	
 # End Source File
 # End Group
 # Begin Group "Header Files"

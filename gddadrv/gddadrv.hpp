@@ -36,7 +36,7 @@ typedef struct _VOLUME_CONTROL {
 
 // StreamThread private info
 
-#define MAX_GDDA_CONTEXT 4
+#define MAX_GDDA_CONTEXT 2
 
 typedef struct _GDDA_CONTEXT
 {
@@ -71,11 +71,12 @@ class GDAudioDriver
 private:
 	// Attributes	
 	LPDIRECTSOUND pds;													// The main DirectSound object
-	GDDA_CONTEXT gddaContextStorage[MAX_GDDA_CONTEXT];
+	GDDA_CONTEXT gddaContextStorage[ MAX_GDDA_CONTEXT ];
 	int gddaContextIndex;
 	bool isInstanceDestroyed;
 	HANDLE hGarbageCollectorThread;
 	volatile bool isCleaningFinished;
+	CRITICAL_SECTION csThread;
 
 	// Private Methods
 	void Reset();
@@ -86,7 +87,6 @@ private:
 	static DWORD WINAPI StreamThreadProc( LPVOID lpParameter );
 	static DWORD WINAPI PlayCommandThreadProc( LPVOID lpParameter );
 
-//	bool ParseWaveFile( void *pvWaveFile, WAVEFORMATEX **ppWaveHeader, BYTE **ppbWaveData, DWORD *pcbWaveSize );
 	IDirectSoundBuffer * CreateSoundBuffer( int nSamplesPerSec, WORD wBitsPerSample, DWORD dwBufferSize );
 	BOOL PrepareForStreaming( IDirectSoundBuffer *pdsb, DWORD dwBufferSize, HANDLE *phEventNotify );
 
