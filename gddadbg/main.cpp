@@ -52,6 +52,7 @@ PlayTrack(DWORD startTrack, DWORD endTrack, DWORD repeatCount)
 void
 PrintCommand( int nCommandNumber, int nCommand )
 {
+#ifdef DEBUG
 	TCHAR * tszCommand;
 	switch(nCommand)
 	{
@@ -71,59 +72,79 @@ PrintCommand( int nCommandNumber, int nCommand )
 			tszCommand = TEXT("RESUME");
 			break;
 	}
+
 	DebugOutput(TEXT("\n\n>>> COMMAND %d: %s <<<\n"), nCommandNumber, tszCommand);
+#endif
+}
+
+int
+GetRandomNumber(int nMinimal, int nMaximal)
+{
+	return Random() % (nMaximal - nMinimal) + nMinimal;
 }
 
 extern "C" int APIENTRY 
 WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPTSTR lpCmdLine, int nCmdShow )
 {	
+#ifdef DEBUG
 	DebugOutput(TEXT("\n\n++++++ GDDA Debug Start ++++++\n"));
+#endif
 
 	Initialize();	
 	
-	PrintCommand(1, PLAY);
-	PlayTrack( 8, 8, 1 );
-	Sleep(1000);
+	int nOperationsCount = GetRandomNumber(10, 20);
 
-	PrintCommand(2, PLAY);
-	PlayTrack( 4, 4, 1 );
-	Sleep(2000);
+#ifdef DEBUG
+		DebugOutput(TEXT("Operations count: %d..."), nOperationsCount);
+#endif
 
-	PrintCommand(3, PLAY);
-	PlayTrack( 5, 5, 1 );
-	Sleep(3000);
+	for(int i = 0; i < nOperationsCount; i++)
+	{
+		int nOperation = GetRandomNumber(1, 4);
+		
+		PrintCommand( i, nOperation );
 
-	PrintCommand(4, PLAY);
-	PlayTrack( 6, 6, 2 );
-	Sleep(10000);
+		switch(nOperation)
+		{
+			case PLAY:
+			{
+				int nTrackNumber = GetRandomNumber(4, 8);
+				int nRepeatTimes = GetRandomNumber(1, 4);
+				PlayTrack( nTrackNumber, nTrackNumber, nRepeatTimes );
+				break;
+			}
 
-	PrintCommand(5, PLAY);
-	PlayTrack( 7, 7, 2 );
-	Sleep(10000);
+			case STOP:
+			{
+				gdda.Stop();
+				break;
+			}
 
-	PrintCommand(6, STOP);
-	gdda.Stop();
-	Sleep(5000);
+			case PAUSE:
+			{
+				gdda.Pause();
+				break;
+			}
 
-	PrintCommand(7, PLAY);
-	PlayTrack( 8, 8, 1 );
-	Sleep(1000);
+			case RESUME:
+			{
+				gdda.Resume();
+				break;
+			}
+		}
 
-	PrintCommand(8, PAUSE);
-	gdda.Pause();
-	Sleep(1000);
-
-	PrintCommand(9, STOP);
-	gdda.Stop();
-	Sleep(1000);
-
-	PrintCommand(10, PLAY);
-	PlayTrack( 4, 4, 1 );
-	Sleep(2000);
+		int nWaitTime = GetRandomNumber(1, 120);
+#ifdef DEBUG
+		DebugOutput(TEXT("Waiting %d second(s)..."), nWaitTime);
+#endif
+		Sleep(1000 * nWaitTime);
+	}
 
 	Finalize();
 
+#ifdef DEBUG
 	DebugOutput(TEXT("\n\n++++++ GDDA Debug End ++++++\n\n\n"));
+#endif
 
     return 0;
 }
