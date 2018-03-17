@@ -89,7 +89,7 @@ GDAudioDriver::PrepareForStreaming( IDirectSoundBuffer *pdsb, DWORD dwBufferSize
 	int currentContextIndex = this->gddaContextIndex;
 
 #ifdef DEBUG
-	DebugOutput(TEXT("[%d] PlayCommandThread: PlaySoundTrackIndex: PrepareForStreaming...\r\n"), currentContextIndex);
+	DebugOutput(TEXT("[%d] PlayCommandThread: PlaySoundTrackIndex: PrepareForStreaming...\n"), currentContextIndex);
 #endif
 
     IDirectSoundNotify	*pdsn;

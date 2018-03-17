@@ -71,13 +71,13 @@ PrintCommand( int nCommandNumber, int nCommand )
 			tszCommand = TEXT("RESUME");
 			break;
 	}
-	DebugOutput(TEXT("\r\n\r\n>>> COMMAND %d: %s <<<\r\n"), nCommandNumber, tszCommand);
+	DebugOutput(TEXT("\n\n>>> COMMAND %d: %s <<<\n"), nCommandNumber, tszCommand);
 }
 
 extern "C" int APIENTRY 
 WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPTSTR lpCmdLine, int nCmdShow )
 {	
-	DebugOutput(TEXT("\r\n\r\n++++++ GDDA Debug Start ++++++\r\n\r\n"));
+	DebugOutput(TEXT("\n\n++++++ GDDA Debug Start ++++++\n"));
 
 	Initialize();	
 	
@@ -123,7 +123,7 @@ WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPTSTR lpCmdLine, int nCm
 
 	Finalize();
 
-	DebugOutput(TEXT("\r\n\r\n++++++ GDDA Debug End ++++++\r\n\r\n"));
+	DebugOutput(TEXT("\n\n++++++ GDDA Debug End ++++++\n\n\n"));
 
     return 0;
 }

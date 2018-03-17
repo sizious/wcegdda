@@ -38,7 +38,7 @@ BOOL WINAPI __DeviceIoControl( HANDLE hDevice,
 			SEGACD_PLAYTRACK playtrack = *((SEGACD_PLAYTRACK*) lpInBuffer);
 
 #ifdef DEBUG
-			DebugOutput(TEXT("IOCTL_SEGACD_CD_PLAYTRACK, dwStartTrack=%d, dwEndTrack=%d, dwRepeat=%d\r\n"), playtrack.dwStartTrack, playtrack.dwEndTrack, playtrack.dwRepeat);
+			DebugOutput(TEXT("IOCTL_SEGACD_CD_PLAYTRACK, dwStartTrack=%d, dwEndTrack=%d, dwRepeat=%d\n"), playtrack.dwStartTrack, playtrack.dwEndTrack, playtrack.dwRepeat);
 #endif
 
 			gdda.Play( playtrack );	
@@ -49,7 +49,7 @@ BOOL WINAPI __DeviceIoControl( HANDLE hDevice,
 		case IOCTL_CDROM_PAUSE_AUDIO:
 		{
 #ifdef DEBUG
-			DebugOutput(TEXT("IOCTL_CDROM_PAUSE_AUDIO\r\n"));
+			DebugOutput(TEXT("IOCTL_CDROM_PAUSE_AUDIO\n"));
 #endif
 			
 			gdda.Pause();
@@ -60,7 +60,7 @@ BOOL WINAPI __DeviceIoControl( HANDLE hDevice,
 		case IOCTL_CDROM_RESUME_AUDIO:
 		{
 #ifdef DEBUG
-			DebugOutput(TEXT("IOCTL_CDROM_RESUME_AUDIO\r\n"));
+			DebugOutput(TEXT("IOCTL_CDROM_RESUME_AUDIO\n"));
 #endif
 
 			gdda.Resume();
@@ -71,7 +71,7 @@ BOOL WINAPI __DeviceIoControl( HANDLE hDevice,
 		case IOCTL_CDROM_STOP_AUDIO:
 		{
 #ifdef DEBUG
-			DebugOutput(TEXT("IOCTL_CDROM_STOP_AUDIO\r\n"));
+			DebugOutput(TEXT("IOCTL_CDROM_STOP_AUDIO\n"));
 #endif
 
 			gdda.Stop();
@@ -82,7 +82,7 @@ BOOL WINAPI __DeviceIoControl( HANDLE hDevice,
 		case IOCTL_CDROM_GET_VOLUME:
 		{
 #ifdef DEBUG
-			DebugOutput(TEXT("IOCTL_CDROM_GET_VOLUME\r\n"));			
+			DebugOutput(TEXT("IOCTL_CDROM_GET_VOLUME\n"));			
 #endif
 			break;
 		}
@@ -95,7 +95,7 @@ BOOL WINAPI __DeviceIoControl( HANDLE hDevice,
 #ifdef DEBUG
 			UCHAR ucLeftVolume  = volume.PortVolume[0];
 			UCHAR ucRightVolume = volume.PortVolume[1];
-			DebugOutput(TEXT("IOCTL_CDROM_SET_VOLUME, left=%d, right=%d\r\n"), ucLeftVolume, ucRightVolume);
+			DebugOutput(TEXT("IOCTL_CDROM_SET_VOLUME, left=%d, right=%d\n"), ucLeftVolume, ucRightVolume);
 #endif
 
 			gdda.SetVolume( volume );
@@ -105,7 +105,7 @@ BOOL WINAPI __DeviceIoControl( HANDLE hDevice,
 		case IOCTL_SEGACD_GET_STATUS:
 		{
 #ifdef DEBUG
-			DebugOutput(TEXT("IOCTL_SEGACD_GET_STATUS\r\n"));
+			DebugOutput(TEXT("IOCTL_SEGACD_GET_STATUS\n"));
 #endif
 			SEGACD_STATUS status;
 		
@@ -129,7 +129,7 @@ BOOL WINAPI __DeviceIoControl( HANDLE hDevice,
 		default:
 		{			
 #ifdef DEBUG
-			DebugOutput(TEXT("__USELESS_HOOK__\r\n"));
+			DebugOutput(TEXT("__USELESS_HOOK__\n"));
 #endif
 			fIntercepted = false;
 			break;
@@ -138,7 +138,7 @@ BOOL WINAPI __DeviceIoControl( HANDLE hDevice,
 	}
 
 #ifdef DEBUG
-	DebugOutput(TEXT("\r\n"));
+	DebugOutput(TEXT("\n"));
 #endif
 
 	// We already managed the API...

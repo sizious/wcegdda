@@ -11,7 +11,7 @@ GDAudioDriver::PlayCommandThreadProc( LPVOID lpParameter )
 	GDDA_CONTEXT *gddaContext = gdda->GetCurrentContext();
 
 #ifdef DEBUG
-	DebugOutput(TEXT("[%d] PlayCommandThread: Start, context slot: #%d, repeat count: %d\r\n"), currentContextIndex, gdda->gddaContextIndex, gddaContext->playRepeatCount);
+	DebugOutput(TEXT("[%d] PlayCommandThread: Start, context slot: #%d, repeat count: %d\n"), currentContextIndex, gdda->gddaContextIndex, gddaContext->playRepeatCount);
 #endif
 
 	// Get parsed SEGACD_PLAYTRACK data
@@ -29,7 +29,7 @@ GDAudioDriver::PlayCommandThreadProc( LPVOID lpParameter )
 #ifdef DEBUG
 	else
 	{
-		DebugOutput(TEXT("[%d] PlayCommandThread: Mutex: Failed to get a valid mutex handle! (Error # = 0x%08x).\r\n"), currentContextIndex, GetLastError());
+		DebugOutput(TEXT("[%d] PlayCommandThread: Mutex: Failed to get a valid mutex handle! (Error # = 0x%08x).\n"), currentContextIndex, GetLastError());
 	}
 #endif
 
@@ -38,7 +38,7 @@ GDAudioDriver::PlayCommandThreadProc( LPVOID lpParameter )
 	{
 
 #ifdef DEBUG
-		DebugOutput(TEXT("[%d] PlayCommandThread: Executing SEGACD_PLAYTRACK sequence, track start: #%d, track end: #%d, repeat: #%d\r\n"), currentContextIndex, soundStartIndex, soundEndIndex, repeatCount);
+		DebugOutput(TEXT("[%d] PlayCommandThread: Executing SEGACD_PLAYTRACK sequence, track start: #%d, track end: #%d, repeat: #%d\n"), currentContextIndex, soundStartIndex, soundEndIndex, repeatCount);
 #endif
 
 		soundIndex = soundStartIndex;
@@ -46,7 +46,7 @@ GDAudioDriver::PlayCommandThreadProc( LPVOID lpParameter )
 		{
 
 #ifdef DEBUG
-			DebugOutput(TEXT("[%d] PlayCommandThread: Launching the play of the track #%d (%d of %d)...\r\n"), currentContextIndex, soundIndex, repeatIndex, repeatCount);
+			DebugOutput(TEXT("[%d] PlayCommandThread: Launching the play of the track #%d (%d of %d)...\n"), currentContextIndex, soundIndex, repeatIndex, repeatCount);
 #endif
 			// Playing the requested track index
 			HANDLE hStreamThread = gdda->PlaySoundTrackIndex( soundIndex );			
@@ -54,7 +54,7 @@ GDAudioDriver::PlayCommandThreadProc( LPVOID lpParameter )
 			{
 
 #ifdef DEBUG
-				DebugOutput(TEXT("[%d] PlayCommandThread: Waiting for StreamThread...\r\n"), currentContextIndex);
+				DebugOutput(TEXT("[%d] PlayCommandThread: Waiting for StreamThread...\n"), currentContextIndex);
 #endif
 
 				WaitForSingleObject( hStreamThread, INFINITE );
@@ -74,8 +74,8 @@ GDAudioDriver::PlayCommandThreadProc( LPVOID lpParameter )
 	}
 
 #ifdef DEBUG
-	DebugOutput(TEXT("[%d] PlayCommandThread: Sound sequence play finished!\r\n"), currentContextIndex);
-	DebugOutput(TEXT("[%d] PlayCommandThread: Done!\r\n"), currentContextIndex);
+	DebugOutput(TEXT("[%d] PlayCommandThread: Sound sequence play finished!\n"), currentContextIndex);
+	DebugOutput(TEXT("[%d] PlayCommandThread: Done!\n"), currentContextIndex);
 #endif
 
 	return 0;

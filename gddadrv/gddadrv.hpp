@@ -36,7 +36,7 @@ typedef struct _VOLUME_CONTROL {
 
 // StreamThread private info
 
-#define MAX_GDDA_CONTEXT 2
+#define MAX_GDDA_CONTEXT 8
 
 typedef struct _GDDA_CONTEXT
 {

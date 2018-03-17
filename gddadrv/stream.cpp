@@ -9,7 +9,7 @@ GDAudioDriver::StreamThreadProc( LPVOID lpParameter )
 	int currentContextIndex = gdda->gddaContextIndex;
 
 #ifdef DEBUG
-	DebugOutput(TEXT("[%d] StreamThread: Start!\r\n"), currentContextIndex);
+	DebugOutput(TEXT("[%d] StreamThread: Start!\n"), currentContextIndex);
 #endif
 	
 	DWORD fPlaying;
@@ -124,7 +124,7 @@ GDAudioDriver::StreamThreadProc( LPVOID lpParameter )
 			if ( gdda->IsPaused() )
 			{
 #ifdef DEBUG
-				DebugOutput(TEXT("[%d] StreamThread is waiting to resume the process...\r\n"), currentContextIndex);
+				DebugOutput(TEXT("[%d] StreamThread is waiting to resume the process...\n"), currentContextIndex);
 #endif
 				if ( gddaContext->pdsbBackground )
 				{
@@ -132,7 +132,7 @@ GDAudioDriver::StreamThreadProc( LPVOID lpParameter )
 					WaitForSingleObject( gddaContext->hSoundResumeEvent, INFINITE );
 				}
 #ifdef DEBUG			
-				DebugOutput(TEXT("[%d] StreamThread was waked up!\r\n"), currentContextIndex);
+				DebugOutput(TEXT("[%d] StreamThread was waked up!\n"), currentContextIndex);
 #endif
 			}
         }
@@ -148,7 +148,7 @@ GDAudioDriver::StreamThreadProc( LPVOID lpParameter )
 	gddaContext->fDonePlaying = true;
 
 #ifdef DEBUG
-	DebugOutput(TEXT("[%d] StreamThread: Done!\r\n"), currentContextIndex);	
+	DebugOutput(TEXT("[%d] StreamThread: Done!\n"), currentContextIndex);	
 #endif
 
 //	LeaveCriticalSection( &g_csStreamLoaderThread );
