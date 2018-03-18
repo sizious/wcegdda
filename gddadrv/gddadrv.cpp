@@ -49,26 +49,26 @@ GDAudioDriver::PlaySoundTrackIndex( int playTrackIndex )
 #ifdef DEBUG
 		DebugOutput(TEXT("[%d] PlayCommandThread: PlaySoundTrackIndex: Getting the file header for \"%s\"...\n"), currentContextIndex, szWaveFile);
 #endif		
-		ReadFile(gddaContext->hSoundFile, byTemp, 256, &cbRead, NULL);
+		ReadFile( gddaContext->hSoundFile, byTemp, 256, &cbRead, NULL );
 
 		// Parse the header information to get information.
-		ParseWaveFile((void*)byTemp, &pwfx, &pbyData, &dwSize);
+		ParseWaveFile( (void*)byTemp, &pwfx, &pbyData, &dwSize );
     
 		// Set file pointer to point to start of data
-		SetFilePointer(gddaContext->hSoundFile, (int)(pbyData - byTemp), NULL, FILE_BEGIN);
+		SetFilePointer( gddaContext->hSoundFile, (int)(pbyData - byTemp), NULL, FILE_BEGIN );
 
 		// Create the sound buffer
 #ifdef DEBUG
 		DebugOutput(TEXT("[%d] PlayCommandThread: PlaySoundTrackIndex: Creating the sound buffer for \"%s\"...\n"), currentContextIndex, szWaveFile);
 #endif			
-		gddaContext->pdsbBackground = CreateSoundBuffer(pwfx->nSamplesPerSec, pwfx->wBitsPerSample, BUFFERSIZE);
-		if (!gddaContext->pdsbBackground)
+		gddaContext->pdsbBackground = CreateSoundBuffer( pwfx->nSamplesPerSec, pwfx->wBitsPerSample, BUFFERSIZE );
+		if ( !gddaContext->pdsbBackground )
 		{
 			goto end;
 		}
 
 		// Prepare the wav file for streaming (set up event notifications)
-		if (!PrepareForStreaming(gddaContext->pdsbBackground, BUFFERSIZE, &gddaContext->hSoundNotifyEvent))
+		if ( !PrepareForStreaming(gddaContext->pdsbBackground, BUFFERSIZE, &gddaContext->hSoundNotifyEvent) )
 		{
 			goto end;
 		}

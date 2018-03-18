@@ -45,8 +45,8 @@ GDAudioDriver::CreateSoundBuffer( int nSamplesPerSec, WORD wBitsPerSample, DWORD
     dsbd.dwFlags                 = DSBCAPS_CTRLDEFAULT | DSBCAPS_LOCSOFTWARE;
     dsbd.lpwfxFormat             = &waveformatex;
 
-    gddaContext->errLast = this->pds->CreateSoundBuffer(&dsbd, &pdsb, NULL);
-    if (CheckError(TEXT(DSDEBUG_CREATE_BUFFER)))
+    gddaContext->errLast = this->pds->CreateSoundBuffer( &dsbd, &pdsb, NULL );
+    if ( CheckError(TEXT(DSDEBUG_CREATE_BUFFER)) )
 	{
         return NULL;
 	}
@@ -97,8 +97,8 @@ GDAudioDriver::PrepareForStreaming( IDirectSoundBuffer *pdsb, DWORD dwBufferSize
 	GDDA_CONTEXT		*gddaContext = this->GetCurrentContext();
 	
     // Get a DirectSoundNotify interface so that we can set the events.
-    gddaContext->errLast = pdsb->QueryInterface(IID_IDirectSoundNotify, (void **)&pdsn);
-    if (CheckError(TEXT(DSDEBUG_QUERY_INTERFACE)))
+    gddaContext->errLast = pdsb->QueryInterface( IID_IDirectSoundNotify, (void **)&pdsn );
+    if ( CheckError(TEXT(DSDEBUG_QUERY_INTERFACE)) )
 	{
         return FALSE;
 	}
@@ -113,7 +113,7 @@ GDAudioDriver::PrepareForStreaming( IDirectSoundBuffer *pdsb, DWORD dwBufferSize
     rgdsbpn[2].dwOffset     = DSBPN_OFFSETSTOP;
 
     gddaContext->errLast = pdsn->SetNotificationPositions(3, rgdsbpn);
-    if (CheckError(TEXT(DSDEBUG_SET_NOTIFICATION_POSITIONS)))
+    if ( CheckError(TEXT(DSDEBUG_SET_NOTIFICATION_POSITIONS)) )
 	{
         return FALSE;
 	}

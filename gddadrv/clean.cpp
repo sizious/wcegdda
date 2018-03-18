@@ -23,11 +23,11 @@ GDAudioDriver::CleanerThreadProc( LPVOID lpParameter )
 			if ( isContextShouldBeCleaned )
 			{				
 #ifdef DEBUG
-				DebugOutput(TEXT("[%d] CleanerThread: Slot #%d will be cleaned up...\n"), currentContextIndex, contextIndex);
+				DebugOutput(TEXT("[%d] CleanerThread: Slot (%d) will be cleaned up...\n"), currentContextIndex, contextIndex);
 #endif
 				gddaContext->fPlayBackgroundSound = false;
 #ifdef DEBUG
-				DebugOutput(TEXT("[%d]   CleanerThread: [%d] Cleaning pdsbBackground (%d)\n"), currentContextIndex, contextIndex, gddaContext->pdsbBackground);
+				DebugOutput(TEXT("[%d]   CleanerThread: (%d) Cleaning pdsbBackground (%d)\n"), currentContextIndex, contextIndex, gddaContext->pdsbBackground);
 #endif
 				if ( gddaContext->pdsbBackground )
 				{
@@ -45,7 +45,7 @@ GDAudioDriver::CleanerThreadProc( LPVOID lpParameter )
 				}
 
 #ifdef DEBUG
-				DebugOutput(TEXT("[%d]   CleanerThread: [%d] Cleaning hSoundNotifyEvent\n"), currentContextIndex, contextIndex);
+				DebugOutput(TEXT("[%d]   CleanerThread: (%d) Cleaning hSoundNotifyEvent\n"), currentContextIndex, contextIndex);
 #endif
 				if ( gddaContext->hSoundNotifyEvent )
 				{
@@ -54,7 +54,7 @@ GDAudioDriver::CleanerThreadProc( LPVOID lpParameter )
 				}
 
 #ifdef DEBUG
-				DebugOutput(TEXT("[%d]   CleanerThread: [%d] Cleaning hPlayCommandThread\n"), currentContextIndex, contextIndex);
+				DebugOutput(TEXT("[%d]   CleanerThread: (%d) Cleaning hPlayCommandThread\n"), currentContextIndex, contextIndex);
 #endif
 				if ( gddaContext->hPlayCommandThread )
 				{
@@ -63,7 +63,7 @@ GDAudioDriver::CleanerThreadProc( LPVOID lpParameter )
 				}
 
 #ifdef DEBUG
-				DebugOutput(TEXT("[%d]   CleanerThread: [%d] Cleaning hSoundResumeEvent\n"), currentContextIndex, contextIndex);
+				DebugOutput(TEXT("[%d]   CleanerThread: (%d) Cleaning hSoundResumeEvent\n"), currentContextIndex, contextIndex);
 #endif
 				if ( gddaContext->hSoundResumeEvent )
 				{
@@ -72,7 +72,7 @@ GDAudioDriver::CleanerThreadProc( LPVOID lpParameter )
 				}
 
 #ifdef DEBUG
-				DebugOutput(TEXT("[%d]   CleanerThread: [%d] Cleaning hSoundFile\n"), currentContextIndex, contextIndex);
+				DebugOutput(TEXT("[%d]   CleanerThread: (%d) Cleaning hSoundFile\n"), currentContextIndex, contextIndex);
 #endif
 				if ( gddaContext->hSoundFile )
 				{
@@ -83,7 +83,7 @@ GDAudioDriver::CleanerThreadProc( LPVOID lpParameter )
 				gddaContext->fCleaned = true;
 				
 #ifdef DEBUG
-				DebugOutput(TEXT("[%d] CleanerThread: Slot #%d has been cleaned up!\n"), currentContextIndex, contextIndex);
+				DebugOutput(TEXT("[%d] CleanerThread: Slot (%d) has been cleaned up!\n"), currentContextIndex, contextIndex);
 #endif				
 			}
 		}

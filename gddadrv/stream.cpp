@@ -17,7 +17,7 @@ GDAudioDriver::StreamThreadProc( LPVOID lpParameter )
     BOOL  fSilence = FALSE;
     BYTE  *pbyBlock1;
     BYTE  *pbyBlock2;
-    DWORD ibRead, ibWrite, cbToLock = BUFFERSIZE/2, cbRead;
+    DWORD ibRead, ibWrite, cbToLock = BUFFERSIZE / 2, cbRead;
     DWORD nBytes1, nBytes2;
 	
 	GDDA_CONTEXT *gddaContext = gdda->GetCurrentContext();

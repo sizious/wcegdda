@@ -50,16 +50,12 @@ PlayTrack(DWORD startTrack, DWORD endTrack, DWORD repeatCount)
 #define RESUME	4
 
 void
-PrintCommand( int nCommandNumber, int nCommand )
+PrintCommand( int nCommandNumber, int nCommandCount, int nCommand )
 {
 #ifdef DEBUG
 	TCHAR * tszCommand;
 	switch(nCommand)
-	{
-		case PLAY:
-			tszCommand = TEXT("PLAY");
-			break;
-
+	{	
 		case STOP:
 			tszCommand = TEXT("STOP");
 			break;
@@ -71,9 +67,14 @@ PrintCommand( int nCommandNumber, int nCommand )
 		case RESUME:
 			tszCommand = TEXT("RESUME");
 			break;
+		
+		case PLAY:
+		default:
+			tszCommand = TEXT("PLAY");
+			break;
 	}
 
-	DebugOutput(TEXT("\n\n>>> COMMAND %d: %s <<<\n"), nCommandNumber, tszCommand);
+	DebugOutput(TEXT("\n\n>>> COMMAND %d of %d: %s <<<\n"), (nCommandNumber + 1), nCommandCount, tszCommand);
 #endif
 }
 
@@ -83,37 +84,23 @@ GetRandomNumber(int nMinimal, int nMaximal)
 	return Random() % (nMaximal - nMinimal) + nMinimal;
 }
 
-extern "C" int APIENTRY 
-WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPTSTR lpCmdLine, int nCmdShow )
-{	
-#ifdef DEBUG
-	DebugOutput(TEXT("\n\n++++++ GDDA Debug Start ++++++\n"));
-#endif
-
-	Initialize();	
-	
-	int nOperationsCount = GetRandomNumber(10, 20);
+void
+ExecuteRandomStressTest()
+{
+	int nOperationsCount = GetRandomNumber(1, 50);
 
 #ifdef DEBUG
-		DebugOutput(TEXT("Operations count: %d..."), nOperationsCount);
+	DebugOutput(TEXT("\nOperations count: %d...\n"), nOperationsCount);
 #endif
 
 	for(int i = 0; i < nOperationsCount; i++)
-	{
-		int nOperation = GetRandomNumber(1, 4);
-		
-		PrintCommand( i, nOperation );
+	{		
+		int nOperation = GetRandomNumber(1, 48) % 4;
+
+		PrintCommand( i, nOperationsCount, nOperation );
 
 		switch(nOperation)
-		{
-			case PLAY:
-			{
-				int nTrackNumber = GetRandomNumber(4, 8);
-				int nRepeatTimes = GetRandomNumber(1, 4);
-				PlayTrack( nTrackNumber, nTrackNumber, nRepeatTimes );
-				break;
-			}
-
+		{		
 			case STOP:
 			{
 				gdda.Stop();
@@ -131,16 +118,52 @@ WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPTSTR lpCmdLine, int nCm
 				gdda.Resume();
 				break;
 			}
+
+			default:
+			case PLAY:
+			{
+				int nTrackNumber = GetRandomNumber(4, 8);
+				int nRepeatTimes = GetRandomNumber(1, 4);
+				PlayTrack( nTrackNumber, nTrackNumber, nRepeatTimes );
+				break;
+			}
+
 		}
 
-		int nWaitTime = GetRandomNumber(1, 120);
+		int nWaitTime = GetRandomNumber(1, 3);
 #ifdef DEBUG
-		DebugOutput(TEXT("Waiting %d second(s)..."), nWaitTime);
+		DebugOutput(TEXT("Waiting %d second(s)...\n\n"), nWaitTime);
 #endif
 		Sleep(1000 * nWaitTime);
 	}
+}
 
-	Finalize();
+void
+ExecutePauseQuickStressTest()
+{
+	PlayTrack( 8, 8, 1 );
+	Sleep(1000);
+	for(int i = 0; i < 5; i++)
+	{
+		int r = GetRandomNumber(1, 18) % 3;
+		gdda.Pause();
+		Sleep(1000 * r);	
+	}
+}
+
+extern "C" int APIENTRY 
+WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPTSTR lpCmdLine, int nCmdShow )
+{	
+#ifdef DEBUG
+	DebugOutput(TEXT("\n\n++++++ GDDA Debug Start ++++++\n"));
+#endif
+
+	if( Initialize() )
+	{	
+		ExecuteRandomStressTest();
+
+		Finalize();
+	}	
 
 #ifdef DEBUG
 	DebugOutput(TEXT("\n\n++++++ GDDA Debug End ++++++\n\n\n"));
