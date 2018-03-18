@@ -1,6 +1,22 @@
 #include "gddadrv.hpp"
 #include "error.hpp"
 
+BOOL
+GDAudioDriver::CheckError(TCHAR *tszErr)
+{
+	GDDA_CONTEXT *gddaContext = this->GetCurrentContext();
+	BOOL isError = ( gddaContext->errLast != 0 );
+
+#ifdef DEBUG
+    if ( isError )
+    {
+        DebugOutput(TEXT("CheckError: %s failed (ErrorCode=0x%08x).\n"), tszErr, gddaContext->errLast);        
+    }	
+#endif
+
+    return ( isError );
+}
+
 /*+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 Function:
