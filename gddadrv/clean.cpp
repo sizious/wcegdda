@@ -28,7 +28,7 @@ GDAudioDriver::CleanerThreadProc( LPVOID lpParameter )
 				gddaContext->fPlayBackgroundSound = false;
 #ifdef DEBUG
 				DebugOutput(TEXT("[%d]   CleanerThread: (%d) Cleaning pdsbBackground (%d)\n"), currentContextIndex, contextIndex, gddaContext->pdsbBackground);
-#endif
+#endif				
 				if ( gddaContext->pdsbBackground )
 				{
 					Sleep(100);

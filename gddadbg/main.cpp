@@ -151,6 +151,18 @@ ExecutePauseQuickStressTest()
 	}
 }
 
+void
+ExecutePlayQuickStressTest()
+{
+	for(int i = 0; i < 50; i++)
+	{
+		int r = GetRandomNumber(1, 18) % 3;
+		int nTrackNumber = GetRandomNumber(4, 8);
+		PlayTrack( nTrackNumber, nTrackNumber, 1 );
+		Sleep(1000 * r);	
+	}
+}
+
 extern "C" int APIENTRY 
 WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPTSTR lpCmdLine, int nCmdShow )
 {	
@@ -160,7 +172,7 @@ WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPTSTR lpCmdLine, int nCm
 
 	if( Initialize() )
 	{	
-		ExecuteRandomStressTest();
+		ExecutePlayQuickStressTest();
 
 		Finalize();
 	}	
