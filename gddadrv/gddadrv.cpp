@@ -47,6 +47,14 @@ GDAudioDriver::~GDAudioDriver()
 	this->isInstanceDestroyed = true;
 	this->CleanUp();
 
+	// Waiting for CleanerThread...
+	Sleep(1000);
+	if ( this->hCleanerThread )
+	{
+		WaitForSingleObject( this->hCleanerThread, INFINITE );
+		CloseHandle( this->hCleanerThread );
+	}
+
 #ifdef DEBUG
 	DebugOutput(TEXT("GDAudioDriver finalizing is done!\n"));
 #endif
@@ -85,17 +93,17 @@ GDAudioDriver::CleanUp()
 	DebugOutput(TEXT("[%d] Command Start: Cleanup\n"), currentContextIndex);
 #endif
 
-	if ( this->hGarbageCollectorThread != NULL ) 
+	if ( this->hCleanerThread != NULL ) 
 	{
 		if ( this->isCleaningFinished )
 		{
 #ifdef DEBUG
 			DebugOutput(TEXT("[%d] CleanerThread was successfully finished, closing handle...\n"), currentContextIndex);
 #endif
-			if( hGarbageCollectorThread )
+			if( hCleanerThread )
 			{
-				CloseHandle( hGarbageCollectorThread );
-				hGarbageCollectorThread = NULL;
+				CloseHandle( hCleanerThread );
+				hCleanerThread = NULL;
 			}
 		}
 		else
@@ -111,7 +119,7 @@ GDAudioDriver::CleanUp()
 	// Run the Garbage Collector Thread
 	this->isCleaningFinished = false;
 	DWORD dwThreadId;	
-	this->hGarbageCollectorThread = CreateThread( NULL, 0, (LPTHREAD_START_ROUTINE) CleanerThreadProc, this, NULL, &dwThreadId );				
+	this->hCleanerThread = CreateThread( NULL, 0, (LPTHREAD_START_ROUTINE) CleanerThreadProc, this, NULL, &dwThreadId );				
 
 #ifdef DEBUG
 	DebugOutput(TEXT("[%d] Command End: Cleanup\n"), currentContextIndex);
@@ -211,75 +219,6 @@ GDAudioDriver::Reset()
 
 #ifdef DEBUG
 	DebugOutput(TEXT("[%d] Command End: Reset\n"), currentContextIndex);
-#endif
-}
-
-void
-GDAudioDriver::Play( SEGACD_PLAYTRACK playtrack )
-{
-#ifdef DEBUG
-	DebugOutput(TEXT("[?] Command Start: Play\n"));
-#endif
-
-	DWORD			dwThreadId;
-	GDDA_CONTEXT	*gddaContext;
-
-	// If we are in PAUSE state, try to resume the sound instead of launching a new PLAY process
-	gddaContext = this->GetCurrentContext();
-	bool isSamePlaytrack = (playtrack.dwStartTrack == gddaContext->dwPreviousStartTrack) && (playtrack.dwEndTrack == gddaContext->dwPreviousEndTrack);
-	if( this->IsPaused() && isSamePlaytrack )
-	{
-		this->Resume();
-		return;
-	}
-
-	// Stop the current playing thread
-	this->Stop();	
-
-	// Clean up the current objects (we do nothing with the current slot, because the thread still be running)
-	this->CleanUp();
-
-	// Start a new GDDA context
-	do
-	{
-		this->gddaContextIndex++; // this next slot was cleaned by the CleanUp method above. the only one slot that wasn't cleaned is the previous slot (see above)
-		if ( this->gddaContextIndex >= MAX_GDDA_CONTEXT )
-		{
-			this->gddaContextIndex = 0;
-		}
-		gddaContext = this->GetCurrentContext();
-	}
-	while( !gddaContext->fCleaned );
-
-#ifdef DEBUG
-	DebugOutput(TEXT("[?] Chosen Play context slot: %d\n"), this->gddaContextIndex);
-#endif
-
-	// Resetting the chosen slot.
-	this->Reset();
-
-	// Notify the object, the music playback is started
-	gddaContext->fStarted = true;
-
-	// Saving the current playtrack valuable data		
-	gddaContext->dwPreviousStartTrack = playtrack.dwStartTrack;
-	gddaContext->dwPreviousEndTrack = playtrack.dwEndTrack;
-
-	// Initializing sound parameters
-	gddaContext->playSoundStartIndex = playtrack.dwStartTrack;
-	gddaContext->playSoundEndIndex = playtrack.dwEndTrack + 1;	
-
-	// Get the repeat count number
-	gddaContext->playRepeatCount = playtrack.dwRepeat + 1;
-	
-	// Infinite loop requested?
-	gddaContext->playRepeatCount = (gddaContext->playRepeatCount > 16) ? INT_MAX : gddaContext->playRepeatCount;
-	
-	// Executing the Watcher Thread (it will run the streaming process)
-    gddaContext->hPlayCommandThread = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE) PlayCommandThreadProc, this, 0, &dwThreadId);	
-
-#ifdef DEBUG
-	DebugOutput(TEXT("[%d] Command End: Play\n"), this->gddaContextIndex);
 #endif
 }
 
