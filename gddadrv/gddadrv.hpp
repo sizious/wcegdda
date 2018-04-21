@@ -37,6 +37,7 @@ typedef struct _VOLUME_CONTROL {
 // StreamThread private info
 
 #define MAX_GDDA_CONTEXT 8
+#define MAX_GDDA_TRACKS_COUNT 99
 
 typedef struct _GDDA_CONTEXT
 {
@@ -72,9 +73,10 @@ private:
 	// Attributes	
 	LPDIRECTSOUND pds;													// The main DirectSound object
 	GDDA_CONTEXT gddaContextStorage[ MAX_GDDA_CONTEXT ];
+	HANDLE gddaTrackFile[ MAX_GDDA_TRACKS_COUNT ];
 	int gddaContextIndex;
 	bool isInstanceDestroyed;
-	HANDLE hGarbageCollectorThread;
+	HANDLE hCleanerThread;												// Garbage Collector (Cleaner) thread handle
 	volatile bool isCleaningFinished;
 	CRITICAL_SECTION csThread;
 
@@ -82,7 +84,8 @@ private:
 	void Reset();
 	bool ChangePlayingStatus( bool allowPlaying );
 	void CleanUp();
-	
+	bool DiscoverTrackFiles();
+
 	static DWORD WINAPI CleanerThreadProc( LPVOID lpParameter );
 	static DWORD WINAPI StreamThreadProc( LPVOID lpParameter );
 	static DWORD WINAPI PlayCommandThreadProc( LPVOID lpParameter );

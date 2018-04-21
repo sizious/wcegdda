@@ -3,6 +3,10 @@
 #include "gddadrv.hpp"
 #include "error.hpp"
 
+#include "utils.hpp"
+
+#define STRESS_TESTS_COUNT	50
+
 GDAudioDriver gdda;
 LPDIRECTSOUND pds = NULL;
 
@@ -143,7 +147,7 @@ ExecutePauseQuickStressTest()
 {
 	PlayTrack( 8, 8, 1 );
 	Sleep(1000);
-	for(int i = 0; i < 5; i++)
+	for(int i = 0; i < STRESS_TESTS_COUNT; i++)
 	{
 		int r = GetRandomNumber(1, 18) % 3;
 		gdda.Pause();
@@ -154,12 +158,36 @@ ExecutePauseQuickStressTest()
 void
 ExecutePlayQuickStressTest()
 {
-	for(int i = 0; i < 50; i++)
-	{
-		int r = GetRandomNumber(1, 18) % 3;
+	for(int i = 0; i < STRESS_TESTS_COUNT; i++)
+	{		
 		int nTrackNumber = GetRandomNumber(4, 8);
+
+#ifdef DEBUG
+		DebugOutput(TEXT(">>> >>> Playing %d of %d, track = %d...\n"), (i + 1), STRESS_TESTS_COUNT, nTrackNumber);
+#endif
+
 		PlayTrack( nTrackNumber, nTrackNumber, 1 );
+
+		int r = GetRandomNumber(1, 18) % 3;
 		Sleep(1000 * r);	
+	}
+}
+
+void
+ExecutePlayStressTest()
+{
+	int count = 10;
+	for(int i = 0; i < count; i++)
+	{
+		int nTrackNumber = GetRandomNumber(4, 8);
+
+#ifdef DEBUG
+		DebugOutput(TEXT(">>> >>> Playing %d of %d, track = %d...\n"), (i + 1), count, nTrackNumber);
+#endif
+
+		PlayTrack( nTrackNumber, nTrackNumber, 1 );
+
+		Sleep(10000);
 	}
 }
 
@@ -170,12 +198,20 @@ WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPTSTR lpCmdLine, int nCm
 	DebugOutput(TEXT("\n\n++++++ GDDA Debug Start ++++++\n"));
 #endif
 
-	if( Initialize() )
+
+	TCHAR    cFileName[MAX_PATH] = TEXT("\\TRUC\\TRACK08.WAV\0");
+
+
+	
+
+  DebugOutput(TEXT("%d\n"), ExtractTrackNumberFromFileName(cFileName));
+
+	/*if( Initialize() )
 	{	
-		ExecutePlayQuickStressTest();
+		ExecutePlayStressTest();
 
 		Finalize();
-	}	
+	}*/	
 
 #ifdef DEBUG
 	DebugOutput(TEXT("\n\n++++++ GDDA Debug End ++++++\n\n\n"));

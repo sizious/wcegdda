@@ -28,6 +28,8 @@ GDAudioDriver::GDAudioDriver()
 		this->gddaContextStorage[i].hSoundResumeEvent = NULL;		
 	}
 
+	DiscoverTrackFiles();
+
 	InitializeCriticalSection( &csThread );
 
 #ifdef DEBUG

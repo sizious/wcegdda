@@ -114,8 +114,23 @@ DEP_CPP_ERROR=\
 # End Source File
 # Begin Source File
 
-SOURCE=.\gddadrv.cpp
-DEP_CPP_GDDAD=\
+SOURCE=.\extrapi.cpp
+# End Source File
+# Begin Source File
+
+SOURCE=.\init.cpp
+DEP_CPP_INIT_=\
+	".\error.hpp"\
+	".\gddadrv.hpp"\
+	{$(INCLUDE)}"ceddcdrm.h"\
+	{$(INCLUDE)}"ceddstor.h"\
+	{$(INCLUDE)}"segagdrm.h"\
+	
+# End Source File
+# Begin Source File
+
+SOURCE=.\main.cpp
+DEP_CPP_MAIN_=\
 	".\error.hpp"\
 	".\gddadrv.hpp"\
 	".\utils.hpp"\
@@ -127,6 +142,14 @@ DEP_CPP_GDDAD=\
 # Begin Source File
 
 SOURCE=.\playcmd.cpp
+DEP_CPP_PLAYC=\
+	".\error.hpp"\
+	".\gddadrv.hpp"\
+	".\utils.hpp"\
+	{$(INCLUDE)}"ceddcdrm.h"\
+	{$(INCLUDE)}"ceddstor.h"\
+	{$(INCLUDE)}"segagdrm.h"\
+	
 # End Source File
 # Begin Source File
 
@@ -144,6 +167,7 @@ DEP_CPP_STREA=\
 SOURCE=.\utils.cpp
 DEP_CPP_UTILS=\
 	".\error.hpp"\
+	".\utils.hpp"\
 	
 # End Source File
 # End Group
@@ -153,6 +177,10 @@ DEP_CPP_UTILS=\
 # Begin Source File
 
 SOURCE=.\error.hpp
+# End Source File
+# Begin Source File
+
+SOURCE=.\extrapi.hpp
 # End Source File
 # Begin Source File
 

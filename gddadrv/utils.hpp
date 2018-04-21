@@ -1,8 +1,13 @@
 #ifndef __UTILS_HPP__
 #define __UTILS_HPP__
 
+#include <windows.h>
+#include <dsound.h>
+#include "error.hpp"
+#include "extrapi.hpp"
+
+int ExtractTrackNumberFromFileName( TCHAR * szWaveFile );
 void GetSoundFilePath( int playTrackIndex, TCHAR szWaveFile[] );
 bool ParseWaveFile( void *pvWaveFile, WAVEFORMATEX **ppWaveHeader, BYTE **ppbWaveData, DWORD *pcbWaveSize );
-bool PathFileExists( LPCTSTR pszPath );
 
 #endif /* __UTILS_HPP__ */

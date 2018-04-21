@@ -95,10 +95,13 @@ LINK32=link.exe
 
 SOURCE=.\main.cpp
 DEP_CPP_MAIN_=\
+	"..\gddadrv\error.hpp"\
 	"..\gddadrv\gddadrv.hpp"\
-	{$(INCLUDE)}"ceddcdrm.h"\
-	{$(INCLUDE)}"ceddstor.h"\
-	{$(INCLUDE)}"segagdrm.h"\
+	
+NODEP_CPP_MAIN_=\
+	".\eddcdrm.h"\
+	".\eddstor.h"\
+	".\egagdrm.h"\
 	
 # End Source File
 # End Group

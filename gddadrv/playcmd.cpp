@@ -2,13 +2,84 @@
 #include "error.hpp"
 #include "utils.hpp"
 
+void
+GDAudioDriver::Play( SEGACD_PLAYTRACK playtrack )
+{
+#ifdef DEBUG
+	DebugOutput(TEXT("[%d] Command Start: Play\n"), this->gddaContextIndex);
+#endif
+
+	DWORD			dwThreadId;
+	GDDA_CONTEXT	*gddaContext;
+
+	// If we are in PAUSE state, try to resume the sound instead of launching a new PLAY process
+	gddaContext = this->GetCurrentContext();
+	bool isSamePlaytrack = (playtrack.dwStartTrack == gddaContext->dwPreviousStartTrack) && (playtrack.dwEndTrack == gddaContext->dwPreviousEndTrack);
+	if( this->IsPaused() && isSamePlaytrack )
+	{
+		this->Resume();
+		return;
+	}
+
+	// Stop the current playing thread
+	this->Stop();	
+
+	// Clean up the current objects (we do nothing with the current slot, because the thread still be running)
+	this->CleanUp();
+
+	// Start a new GDDA context
+	// Select an empty and ready-to-use slot
+	do
+	{
+		this->gddaContextIndex++; // this next slot was cleaned by the CleanUp method above. the only one slot that wasn't cleaned is the previous slot (see above)
+		if ( this->gddaContextIndex >= MAX_GDDA_CONTEXT )
+		{
+			this->gddaContextIndex = 0;
+		}
+		gddaContext = this->GetCurrentContext();
+	}
+	while( !gddaContext->fCleaned );
+
+#ifdef DEBUG
+	DebugOutput(TEXT("[%d] Context slot is now chosen!\n"), this->gddaContextIndex);
+#endif
+
+	// Resetting the chosen slot.
+	this->Reset();
+
+	// Saving the current playtrack valuable data		
+	gddaContext->dwPreviousStartTrack = playtrack.dwStartTrack;
+	gddaContext->dwPreviousEndTrack = playtrack.dwEndTrack;
+
+	// Initializing sound parameters
+	gddaContext->playSoundStartIndex = playtrack.dwStartTrack;
+	gddaContext->playSoundEndIndex = playtrack.dwEndTrack + 1;	
+
+	// Get the repeat count number
+	gddaContext->playRepeatCount = playtrack.dwRepeat + 1;
+	
+	// Infinite loop requested?
+	gddaContext->playRepeatCount = (gddaContext->playRepeatCount > 16) ? INT_MAX : gddaContext->playRepeatCount;
+	
+	// Notify the object, the music playback is started
+	gddaContext->fStarted = true;
+
+	// Executing the Watcher Thread (it will run the streaming process)
+    gddaContext->hPlayCommandThread = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE) PlayCommandThreadProc, this, 0, &dwThreadId);	
+
+#ifdef DEBUG
+	DebugOutput(TEXT("[%d] Command End: Play\n"), this->gddaContextIndex);
+#endif
+}
+
 // PlayCommandThread
 DWORD WINAPI
 GDAudioDriver::PlayCommandThreadProc( LPVOID lpParameter )
 {
 	GDAudioDriver *gdda = (GDAudioDriver*) lpParameter;
-	int currentContextIndex = gdda->gddaContextIndex;
+
 	unsigned long repeatIndex = 0, soundIndex = 0, repeatCount, soundStartIndex, soundEndIndex;
+	int currentContextIndex = gdda->gddaContextIndex;	
 	GDDA_CONTEXT *gddaContext = gdda->GetCurrentContext();
 
 #ifdef DEBUG
@@ -33,6 +104,7 @@ GDAudioDriver::PlayCommandThreadProc( LPVOID lpParameter )
 		DebugOutput(TEXT("[%d] PlayCommandThread: Mutex: Failed to get a valid mutex handle! (Error # = 0x%08x).\n"), currentContextIndex, GetLastError());
 	}
 #endif
+
 
 	// Playing the parsed SEGACD_PLAYTRACK
 	while( !gddaContext->fExiting && repeatIndex < repeatCount )
@@ -129,7 +201,7 @@ GDAudioDriver::PlaySoundTrackIndex( int playTrackIndex )
 #ifdef DEBUG
 		DebugOutput(TEXT("[%d] PlayCommandThread: PlaySoundTrackIndex: Getting the file header for \"%s\"...\n"), currentContextIndex, szWaveFile);
 #endif		
-		ReadFile( gddaContext->hSoundFile, byTemp, 256, &cbRead, NULL );
+		ReadFile( gddaContext->hSoundFile, byTemp, 256, &cbRead, NULL );		
 
 		// Parse the header information to get information.
 		ParseWaveFile( (void*)byTemp, &pwfx, &pbyData, &dwSize );
@@ -148,7 +220,7 @@ GDAudioDriver::PlaySoundTrackIndex( int playTrackIndex )
 		}
 
 		// Prepare the wav file for streaming (set up event notifications)
-		if ( !PrepareForStreaming(gddaContext->pdsbBackground, BUFFERSIZE, &gddaContext->hSoundNotifyEvent) )
+		if ( !PrepareForStreaming( gddaContext->pdsbBackground, BUFFERSIZE, &gddaContext->hSoundNotifyEvent ) )
 		{
 			goto end;
 		}
@@ -164,7 +236,8 @@ GDAudioDriver::PlaySoundTrackIndex( int playTrackIndex )
 			gddaContext->pdsbBackground->Unlock( pbyBlock1, nBytes1, pbyBlock2, nBytes2 );
 
 			// Create a separate thread which will handling streaming the sound
-			hStreamThread = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE) StreamThreadProc, this, 0, &dwThreadId);
+			hStreamThread = CreateThread( NULL, 0, (LPTHREAD_START_ROUTINE) StreamThreadProc, this, 0, &dwThreadId );
+			
 			if (!hStreamThread)
 			{
 #ifdef DEBUG
@@ -182,7 +255,7 @@ GDAudioDriver::PlaySoundTrackIndex( int playTrackIndex )
 			// Start the sound playing
 			gddaContext->pdsbBackground->Play( 0, 0, DSBPLAY_LOOPING );
 
-			gddaContext->fPlayBackgroundSound = true;    
+			gddaContext->fPlayBackgroundSound = true; 			
 		}
 end:
 		ReleaseMutex( hIOMutex );
