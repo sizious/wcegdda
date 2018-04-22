@@ -5,7 +5,7 @@
 
 #include "utils.hpp"
 
-#define STRESS_TESTS_COUNT	50
+#define STRESS_TESTS_COUNT	100
 
 GDAudioDriver gdda;
 LPDIRECTSOUND pds = NULL;
@@ -156,14 +156,14 @@ ExecutePauseQuickStressTest()
 }
 
 void
-ExecutePlayQuickStressTest()
+ExecutePlayStrongStressTest()
 {
 	for(int i = 0; i < STRESS_TESTS_COUNT; i++)
 	{		
 		int nTrackNumber = GetRandomNumber(4, 8);
 
 #ifdef DEBUG
-		DebugOutput(TEXT(">>> >>> Playing %d of %d, track = %d...\n"), (i + 1), STRESS_TESTS_COUNT, nTrackNumber);
+		DebugOutput(TEXT("\n\n>>> Playing %d of %d, track = %d...\n"), (i + 1), STRESS_TESTS_COUNT, nTrackNumber);
 #endif
 
 		PlayTrack( nTrackNumber, nTrackNumber, 1 );
@@ -200,7 +200,7 @@ WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPTSTR lpCmdLine, int nCm
 
 	if( Initialize() )
 	{	
-		ExecutePlayStressTest();
+		ExecutePlayStrongStressTest();
 
 		Finalize();
 	}
