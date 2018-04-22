@@ -47,6 +47,44 @@ StrStr( LPCTSTR lpFirst, LPCTSTR lpSrch )
 
 Function:
 
+    StrCat
+
+Description:
+
+    Appends one string to another.
+
+Arguments:
+
+    PTSTR			psz1    -	A pointer to a null-terminated string. When this function returns 
+								successfully, this string contains its original content with the 
+								string psz2 appended. This buffer must be large enough to hold 
+								both strings and the terminating null character.
+
+	PCTSTR			psz2	-	A pointer to a null-terminated string to be appended to psz1.
+
+Return Value:
+
+	Returns a pointer to psz1, which holds the combined strings.
+
+-------------------------------------------------------------------*/
+
+PTSTR StrCat( PTSTR psz1, PCTSTR psz2 )
+{
+	size_t nLength1 = _tcslen( psz1 );
+	size_t nLength2 = _tcslen( psz2 );
+		
+	memcpy( psz1 + nLength1, psz2, nLength2 * sizeof(TCHAR) );
+	
+	size_t nFinalLength = nLength1 + nLength2 + 1;
+	psz1[ nFinalLength ] = '\0';
+	
+	return psz1;
+}
+
+/*+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+Function:
+
     PathFileExists
 
 Description:

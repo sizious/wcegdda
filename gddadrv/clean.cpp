@@ -36,7 +36,7 @@ GDAudioDriver::CleanerThreadProc( LPVOID lpParameter )
 					__try
 					{
 						gddaContext->pdsbBackground->Stop();
-						gddaContext->pdsbBackground->Release();
+//						gddaContext->pdsbBackground->Release();
 					}
 					__finally
 					{
@@ -76,7 +76,7 @@ GDAudioDriver::CleanerThreadProc( LPVOID lpParameter )
 #endif
 				if ( gddaContext->hSoundFile )
 				{
-					CloseHandle( gddaContext->hSoundFile );
+//					CloseHandle( gddaContext->hSoundFile );
 					gddaContext->hSoundFile = NULL;
 				}
 

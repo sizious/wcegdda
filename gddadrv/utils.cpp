@@ -142,20 +142,3 @@ ParseWaveFile( void *pvWaveFile, WAVEFORMATEX **ppWaveHeader, BYTE **ppbWaveData
     return false;
 }
 
-void
-GetSoundFilePath( int playTrackIndex, TCHAR szWaveFile[] )
-{
-#if SH4
-		_stprintf( szWaveFile, TEXT("\\CD-ROM\\GDDA\\TRACK%02d.WAV"), playTrackIndex );
-
-#ifdef DEBUG
-		if ( !PathFileExists( szWaveFile ) )
-		{
-			_stprintf( szWaveFile, TEXT("\\PC\\Applications\\GDDA\\TRACK%02d.WAV"), playTrackIndex );
-		}
-#endif
-
-#else
-		_stprintf( szWaveFile, TEXT("TRACK%02d.WAV"), playTrackIndex );
-#endif
-}

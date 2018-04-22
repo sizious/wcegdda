@@ -1,5 +1,6 @@
 #include "gddadrv.hpp"
 #include "error.hpp"
+#include "utils.hpp"
 
 bool 
 GDAudioDriver::DiscoverTrackFiles()
@@ -9,19 +10,13 @@ GDAudioDriver::DiscoverTrackFiles()
 	TCHAR szDir[MAX_PATH];	
 	HANDLE hFind = INVALID_HANDLE_VALUE;
 	DWORD dwError = 0xDEADBEEF;
-	TCHAR szTrackNumber[3];
-
 	
-
-#if SH4
 	_stprintf( szDir, TEXT("\\CD-ROM\\GDDA\\TRACK??.WAV") );
+	this->_audiodb.SetSourceDirectory( TEXT("\\CD-ROM\\GDDA\\") );
 
 #ifdef DEBUG
 	_stprintf( szDir, TEXT("\\PC\\Applications\\GDDA\\TRACK??.WAV") );
-#endif
-
-#else
-	_stprintf( szDir, TEXT("TRACK??.WAV") );
+	this->_audiodb.SetSourceDirectory( TEXT("\\PC\\Applications\\GDDA\\") );
 #endif
 
 #ifdef DEBUG
@@ -35,16 +30,15 @@ GDAudioDriver::DiscoverTrackFiles()
 		do
 		{
 			if ( !(ffd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) )
-			{
-				filesize.LowPart = ffd.nFileSizeLow;
-				filesize.HighPart = ffd.nFileSizeHigh;
-				
-				memcpy( szTrackNumber, &ffd.cFileName[5], 2 );
-				szTrackNumber[2] = '\0';
-
+			{				
+				this->_audiodb.Register( ffd.cFileName );
 #ifdef DEBUG
-				DebugOutput(TEXT("  %s, size: %ld Bytes, number: %s\n"), ffd.cFileName, filesize.QuadPart, szTrackNumber);
-#endif				
+				filesize.LowPart = ffd.nFileSizeLow;
+				filesize.HighPart = ffd.nFileSizeHigh;								
+				int trackNumber = ExtractTrackNumberFromFileName( ffd.cFileName );
+				DebugOutput(TEXT("  %s, size: %ld KB"), ffd.cFileName, filesize.QuadPart / 1024);
+				DebugOutput(TEXT(", trackNumber: %d\n"), trackNumber);
+#endif			
 			}
 		}
 		while ( FindNextFile( hFind, &ffd ) != 0 );
@@ -59,5 +53,14 @@ GDAudioDriver::DiscoverTrackFiles()
 		FindClose(hFind);
 	}
 
-   return (dwError == 0);
+#if DEBUG
+	DebugOutput( TEXT("Registered tracks...\n") );
+	for(size_t i = 0; i < this->_audiodb.Count(); i++)
+	{
+		DebugOutput( TEXT("  trackNumber: %d\n"), this->_audiodb.GetItems( i )->nTrackNumber );
+	}
+
+#endif
+
+	return (dwError == 0);
 }

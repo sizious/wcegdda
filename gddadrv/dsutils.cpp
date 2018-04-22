@@ -5,59 +5,6 @@
 
 Function:
 
-    CreateSoundBuffer
-
-Description:
-
-    Creates an empty DirectSoundBuffer
-    
-Arguments:
-
-    int     nSamplesPerSec      - Recording resolution (ex: 11025)
-
-    WORD    wBitsPerSample      - Recording resoultion (ex: 16)
-
-    DWORD   dwBufferSize        - length of recording time (ex: 16 * 1024)
-
-Return Value:
-
-    Pointer to the created buffer (NULL on failure)
-
--------------------------------------------------------------------*/
-IDirectSoundBuffer *
-GDAudioDriver::CreateSoundBuffer( int nSamplesPerSec, WORD wBitsPerSample, DWORD dwBufferSize )
-{
-	GDDA_CONTEXT		*gddaContext	= this->GetCurrentContext();
-    IDirectSoundBuffer	*pdsb			= NULL;
-    DSBUFFERDESC		dsbd			= {0};
-    WAVEFORMATEX		waveformatex	= {0};
-
-    // Set up the Wave format description
-    waveformatex.wFormatTag      = WAVE_FORMAT_PCM;
-    waveformatex.nChannels       = 1;
-    waveformatex.nSamplesPerSec  = nSamplesPerSec;
-    waveformatex.wBitsPerSample  = wBitsPerSample;
-    waveformatex.nBlockAlign     = (waveformatex.nChannels * waveformatex.wBitsPerSample) / 8;
-    waveformatex.nAvgBytesPerSec = waveformatex.nSamplesPerSec * waveformatex.nBlockAlign;
-    waveformatex.cbSize          = 0;
-    dsbd.dwSize                  = sizeof(dsbd);
-    dsbd.dwBufferBytes           = dwBufferSize;
-    dsbd.dwFlags                 = DSBCAPS_CTRLDEFAULT | DSBCAPS_LOCSOFTWARE;
-    dsbd.lpwfxFormat             = &waveformatex;
-
-    gddaContext->errLast = this->pds->CreateSoundBuffer( &dsbd, &pdsb, NULL );
-    if ( CheckError(TEXT(DSDEBUG_CREATE_BUFFER)) )
-	{
-        return NULL;
-	}
-
-    return pdsb;
-}
-
-/*+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
-Function:
-
     PrepareForStreaming
 
 Description:

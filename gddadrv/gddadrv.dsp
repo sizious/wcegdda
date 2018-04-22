@@ -81,13 +81,19 @@ LIB32=link.exe -lib
 # PROP Default_Filter "cpp;c;cxx;rc;def;r;odl;idl;hpj;bat"
 # Begin Source File
 
+SOURCE=.\audiodb.cpp
+# End Source File
+# Begin Source File
+
 SOURCE=.\clean.cpp
 DEP_CPP_CLEAN=\
 	".\error.hpp"\
 	".\gddadrv.hpp"\
-	{$(INCLUDE)}"ceddcdrm.h"\
-	{$(INCLUDE)}"ceddstor.h"\
-	{$(INCLUDE)}"segagdrm.h"\
+	
+NODEP_CPP_CLEAN=\
+	".\eddcdrm.h"\
+	".\eddstor.h"\
+	".\egagdrm.h"\
 	
 # End Source File
 # Begin Source File
@@ -96,9 +102,11 @@ SOURCE=.\dsutils.cpp
 DEP_CPP_DSUTI=\
 	".\error.hpp"\
 	".\gddadrv.hpp"\
-	{$(INCLUDE)}"ceddcdrm.h"\
-	{$(INCLUDE)}"ceddstor.h"\
-	{$(INCLUDE)}"segagdrm.h"\
+	
+NODEP_CPP_DSUTI=\
+	".\eddcdrm.h"\
+	".\eddstor.h"\
+	".\egagdrm.h"\
 	
 # End Source File
 # Begin Source File
@@ -107,24 +115,33 @@ SOURCE=.\error.cpp
 DEP_CPP_ERROR=\
 	".\error.hpp"\
 	".\gddadrv.hpp"\
-	{$(INCLUDE)}"ceddcdrm.h"\
-	{$(INCLUDE)}"ceddstor.h"\
-	{$(INCLUDE)}"segagdrm.h"\
+	
+NODEP_CPP_ERROR=\
+	".\eddcdrm.h"\
+	".\eddstor.h"\
+	".\egagdrm.h"\
 	
 # End Source File
 # Begin Source File
 
 SOURCE=.\extrapi.cpp
+DEP_CPP_EXTRA=\
+	".\extrapi.hpp"\
+	
 # End Source File
 # Begin Source File
 
 SOURCE=.\init.cpp
 DEP_CPP_INIT_=\
 	".\error.hpp"\
+	".\extrapi.hpp"\
 	".\gddadrv.hpp"\
-	{$(INCLUDE)}"ceddcdrm.h"\
-	{$(INCLUDE)}"ceddstor.h"\
-	{$(INCLUDE)}"segagdrm.h"\
+	".\utils.hpp"\
+	
+NODEP_CPP_INIT_=\
+	".\eddcdrm.h"\
+	".\eddstor.h"\
+	".\egagdrm.h"\
 	
 # End Source File
 # Begin Source File
@@ -132,11 +149,14 @@ DEP_CPP_INIT_=\
 SOURCE=.\main.cpp
 DEP_CPP_MAIN_=\
 	".\error.hpp"\
+	".\extrapi.hpp"\
 	".\gddadrv.hpp"\
 	".\utils.hpp"\
-	{$(INCLUDE)}"ceddcdrm.h"\
-	{$(INCLUDE)}"ceddstor.h"\
-	{$(INCLUDE)}"segagdrm.h"\
+	
+NODEP_CPP_MAIN_=\
+	".\eddcdrm.h"\
+	".\eddstor.h"\
+	".\egagdrm.h"\
 	
 # End Source File
 # Begin Source File
@@ -144,11 +164,14 @@ DEP_CPP_MAIN_=\
 SOURCE=.\playcmd.cpp
 DEP_CPP_PLAYC=\
 	".\error.hpp"\
+	".\extrapi.hpp"\
 	".\gddadrv.hpp"\
 	".\utils.hpp"\
-	{$(INCLUDE)}"ceddcdrm.h"\
-	{$(INCLUDE)}"ceddstor.h"\
-	{$(INCLUDE)}"segagdrm.h"\
+	
+NODEP_CPP_PLAYC=\
+	".\eddcdrm.h"\
+	".\eddstor.h"\
+	".\egagdrm.h"\
 	
 # End Source File
 # Begin Source File
@@ -157,9 +180,11 @@ SOURCE=.\stream.cpp
 DEP_CPP_STREA=\
 	".\error.hpp"\
 	".\gddadrv.hpp"\
-	{$(INCLUDE)}"ceddcdrm.h"\
-	{$(INCLUDE)}"ceddstor.h"\
-	{$(INCLUDE)}"segagdrm.h"\
+	
+NODEP_CPP_STREA=\
+	".\eddcdrm.h"\
+	".\eddstor.h"\
+	".\egagdrm.h"\
 	
 # End Source File
 # Begin Source File
@@ -167,6 +192,7 @@ DEP_CPP_STREA=\
 SOURCE=.\utils.cpp
 DEP_CPP_UTILS=\
 	".\error.hpp"\
+	".\extrapi.hpp"\
 	".\utils.hpp"\
 	
 # End Source File
@@ -174,6 +200,10 @@ DEP_CPP_UTILS=\
 # Begin Group "Header Files"
 
 # PROP Default_Filter "h;hpp;hxx;hm;inl"
+# Begin Source File
+
+SOURCE=.\audiodb.hpp
+# End Source File
 # Begin Source File
 
 SOURCE=.\error.hpp

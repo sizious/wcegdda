@@ -176,7 +176,7 @@ ExecutePlayQuickStressTest()
 void
 ExecutePlayStressTest()
 {
-	int count = 10;
+	int count = 5;
 	for(int i = 0; i < count; i++)
 	{
 		int nTrackNumber = GetRandomNumber(4, 8);
@@ -187,7 +187,7 @@ ExecutePlayStressTest()
 
 		PlayTrack( nTrackNumber, nTrackNumber, 1 );
 
-		Sleep(10000);
+		Sleep(count * 1000);
 	}
 }
 
@@ -198,20 +198,12 @@ WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPTSTR lpCmdLine, int nCm
 	DebugOutput(TEXT("\n\n++++++ GDDA Debug Start ++++++\n"));
 #endif
 
-
-	TCHAR    cFileName[MAX_PATH] = TEXT("\\TRUC\\TRACK08.WAV\0");
-
-
-	
-
-  DebugOutput(TEXT("%d\n"), ExtractTrackNumberFromFileName(cFileName));
-
-	/*if( Initialize() )
+	if( Initialize() )
 	{	
 		ExecutePlayStressTest();
 
 		Finalize();
-	}*/	
+	}
 
 #ifdef DEBUG
 	DebugOutput(TEXT("\n\n++++++ GDDA Debug End ++++++\n\n\n"));

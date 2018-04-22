@@ -7,7 +7,6 @@
 #include "extrapi.hpp"
 
 int ExtractTrackNumberFromFileName( TCHAR * szWaveFile );
-void GetSoundFilePath( int playTrackIndex, TCHAR szWaveFile[] );
 bool ParseWaveFile( void *pvWaveFile, WAVEFORMATEX **ppWaveHeader, BYTE **ppbWaveData, DWORD *pcbWaveSize );
 
 #endif /* __UTILS_HPP__ */

@@ -3,40 +3,12 @@
  
 #include <tchar.h>
 #include <dsound.h>
-
-#ifdef SH4
-
-// For Sega Dreamcast
-
 #include <ceddcdrm.h>
 #include <segagdrm.h>
+#include "audiodb.hpp"
 
-#else
 
-// For Microsoft Windows
-
-#pragma comment(lib, "dsound.lib")
-#pragma comment(lib, "dxguid.lib")
-
-#include <iostream>
-
-using namespace std;
-
-typedef struct {
-    DWORD dwStartTrack;
-	DWORD dwEndTrack;
-	DWORD dwRepeat;
-} SEGACD_PLAYTRACK;
-
-typedef struct _VOLUME_CONTROL {
-    UCHAR PortVolume[4];
-} VOLUME_CONTROL, *PVOLUME_CONTROL;
-
-#endif /* SH4 */
-
-// StreamThread private info
-
-#define MAX_GDDA_CONTEXT 8
+#define MAX_GDDA_CONTEXT 4
 #define MAX_GDDA_TRACKS_COUNT 99
 
 typedef struct _GDDA_CONTEXT
@@ -80,23 +52,24 @@ private:
 	volatile bool isCleaningFinished;
 	CRITICAL_SECTION csThread;
 
+
 	// Private Methods
 	void Reset();
 	bool ChangePlayingStatus( bool allowPlaying );
 	void CleanUp();
-	bool DiscoverTrackFiles();
 
 	static DWORD WINAPI CleanerThreadProc( LPVOID lpParameter );
 	static DWORD WINAPI StreamThreadProc( LPVOID lpParameter );
 	static DWORD WINAPI PlayCommandThreadProc( LPVOID lpParameter );
 
-	IDirectSoundBuffer * CreateSoundBuffer( int nSamplesPerSec, WORD wBitsPerSample, DWORD dwBufferSize );
 	BOOL PrepareForStreaming( IDirectSoundBuffer *pdsb, DWORD dwBufferSize, HANDLE *phEventNotify );
 
 	BOOL CheckError( TCHAR *tszErr );
 	HANDLE PlaySoundTrackIndex( int playTrackIndex );
 	GDDA_CONTEXT * GetContext( int index );
 	GDDA_CONTEXT * GetCurrentContext();
+
+
 
 public:
 	GDAudioDriver();
@@ -111,6 +84,9 @@ public:
 	VOLUME_CONTROL GetVolume();
 	void SetVolume( VOLUME_CONTROL volume );
 	void Stop();
+	
+	bool DiscoverTrackFiles();
+		GDAudioTrackDatabase _audiodb;
 };
 
 #ifdef DEBUG
@@ -133,19 +109,6 @@ public:
 #define DSDEBUG_QUERY_INTERFACE				""
 #define DSDEBUG_SET_NOTIFICATION_POSITIONS	""
 #define DSDEBUG_CREATE_BUFFER				""
-
-#endif
-
-// Arbitrary nice large number (must be divisible by 2)
-#define BUFFERSIZE 524288
-
-#ifndef SH4
-
-// For Microsoft Windows Only
-
-// On Windows, the DSBCAPS_CTRLPOSITIONNOTIFY is VERY important.
-// If not present, the IID_IDirectSoundNotify interface won't work.
-#define DSBCAPS_CTRLDEFAULT					DSBCAPS_CTRLPAN | DSBCAPS_CTRLVOLUME | DSBCAPS_CTRLFREQUENCY | DSBCAPS_CTRLPOSITIONNOTIFY
 
 #endif
 

@@ -26,11 +26,11 @@ GDAudioDriver::GDAudioDriver()
 		this->gddaContextStorage[i].hSoundFile = NULL;
 		this->gddaContextStorage[i].hSoundNotifyEvent = NULL;
 		this->gddaContextStorage[i].hSoundResumeEvent = NULL;		
-	}
-
-	DiscoverTrackFiles();
+	}	
 
 	InitializeCriticalSection( &csThread );
+
+	this->DiscoverTrackFiles();
 
 #ifdef DEBUG
 	DebugOutput(TEXT("GDAudioDriver initializing is done!\n"));
@@ -50,12 +50,14 @@ GDAudioDriver::~GDAudioDriver()
 	this->CleanUp();
 
 	// Waiting for CleanerThread...
-	Sleep(1000);
+	Sleep(3000);
 	if ( this->hCleanerThread )
 	{
 		WaitForSingleObject( this->hCleanerThread, INFINITE );
 		CloseHandle( this->hCleanerThread );
 	}
+
+	Sleep(5000);
 
 #ifdef DEBUG
 	DebugOutput(TEXT("GDAudioDriver finalizing is done!\n"));
@@ -78,6 +80,7 @@ void
 GDAudioDriver::Initialize( LPDIRECTSOUND pds )
 {
 	this->pds = pds;
+	this->_audiodb.Initialize( pds );
 }
 
 bool

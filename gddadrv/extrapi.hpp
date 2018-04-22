@@ -9,6 +9,7 @@
 // Extra API missing from Windows CE
 
 BOOL PathFileExists( LPCTSTR pszPath );
+PTSTR StrCat( PTSTR psz1, PCTSTR psz2 );
 LPTSTR StrStr( LPCTSTR lpFirst, LPCTSTR lpSrch );
 
 #endif /* __EXTRAPI_HPP__ */

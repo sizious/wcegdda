@@ -163,12 +163,10 @@ GDAudioDriver::PlaySoundTrackIndex( int playTrackIndex )
 	if ( hIOMutex )
 	{
 		WaitForSingleObject( hIOMutex, INFINITE );
-
-		WAVEFORMATEX	*pwfx;         
-		DWORD			dwThreadId, dwSize;
+     
+		DWORD			dwThreadId;
 		ULONG			nBytes1, nBytes2, cbRead;
-		BYTE			byTemp[256], *pbyBlock1, *pbyBlock2, *pbyData;
-		TCHAR			szWaveFile[MAX_PATH];
+		BYTE			*pbyBlock1, *pbyBlock2;
 		GDDA_CONTEXT	*gddaContext = this->GetCurrentContext();
 
 		// Check if the driver is ready
@@ -180,44 +178,35 @@ GDAudioDriver::PlaySoundTrackIndex( int playTrackIndex )
 			goto end;
 		}
 
-		// Getting the WAV file name to load
-		GetSoundFilePath( playTrackIndex, szWaveFile );
-
 #ifdef DEBUG
-		DebugOutput(TEXT("[%d] PlayCommandThread: PlaySoundTrackIndex: Launching playback for \"%s\"...\n"), currentContextIndex, szWaveFile);
+		DebugOutput(TEXT("[%d] PlayCommandThread: PlaySoundTrackIndex: Launching playback for \"%d\"...\n"), currentContextIndex, playTrackIndex);
 #endif
 
+		// Loading audio context! FIXME
+		AUDIO_TRACK_CONTEXT audioTrackContext;
+		if ( !this->_audiodb.GetAudioTrackContext( playTrackIndex, &audioTrackContext ) )
+		{				
+#ifdef DEBUG
+			DebugOutput(TEXT("[%d] PlayCommandThread: PlaySoundTrackIndex: Sorry, GetAudioTrackContext failed...\n"), currentContextIndex);
+#endif
+			goto end;
+		}
+		
+
 		// Load the wav file that we want to stream in the background.
-		gddaContext->hSoundFile = CreateFile( szWaveFile, GENERIC_READ, 0, NULL, OPEN_EXISTING, 0, NULL );
+		gddaContext->hSoundFile = audioTrackContext.hTrackFile;
 		if ( gddaContext->hSoundFile == INVALID_HANDLE_VALUE )
 		{		
 #ifdef DEBUG
-			DebugOutput(TEXT("[%d] PlayCommandThread: PlaySoundTrackIndex: Sorry, file \"%s\" doesn't exists...\n"), currentContextIndex, szWaveFile);
+			DebugOutput(TEXT("[%d] PlayCommandThread: PlaySoundTrackIndex: Sorry, track \"%d\" doesn't exists...\n"), currentContextIndex, playTrackIndex);
 #endif
 			goto end;
 		}
 
-		// Read the first 256 bytes to get file header
-#ifdef DEBUG
-		DebugOutput(TEXT("[%d] PlayCommandThread: PlaySoundTrackIndex: Getting the file header for \"%s\"...\n"), currentContextIndex, szWaveFile);
-#endif		
-		ReadFile( gddaContext->hSoundFile, byTemp, 256, &cbRead, NULL );		
+		gddaContext->pdsbBackground = audioTrackContext.pSoundBuffer;
 
-		// Parse the header information to get information.
-		ParseWaveFile( (void*)byTemp, &pwfx, &pbyData, &dwSize );
-    
 		// Set file pointer to point to start of data
-		SetFilePointer( gddaContext->hSoundFile, (int)(pbyData - byTemp), NULL, FILE_BEGIN );
-
-		// Create the sound buffer
-#ifdef DEBUG
-		DebugOutput(TEXT("[%d] PlayCommandThread: PlaySoundTrackIndex: Creating the sound buffer for \"%s\"...\n"), currentContextIndex, szWaveFile);
-#endif			
-		gddaContext->pdsbBackground = CreateSoundBuffer( pwfx->nSamplesPerSec, pwfx->wBitsPerSample, BUFFERSIZE );
-		if ( !gddaContext->pdsbBackground )
-		{
-			goto end;
-		}
+		SetFilePointer( gddaContext->hSoundFile, audioTrackContext.dwSoundDataOffset, NULL, FILE_BEGIN );
 
 		// Prepare the wav file for streaming (set up event notifications)
 		if ( !PrepareForStreaming( gddaContext->pdsbBackground, BUFFERSIZE, &gddaContext->hSoundNotifyEvent ) )
@@ -235,9 +224,11 @@ GDAudioDriver::PlaySoundTrackIndex( int playTrackIndex )
 			ReadFile( gddaContext->hSoundFile, pbyBlock1, nBytes1, &cbRead, NULL );
 			gddaContext->pdsbBackground->Unlock( pbyBlock1, nBytes1, pbyBlock2, nBytes2 );
 
+			// Start the sound playing
+			gddaContext->pdsbBackground->Play( 0, 0, DSBPLAY_LOOPING );
+
 			// Create a separate thread which will handling streaming the sound
-			hStreamThread = CreateThread( NULL, 0, (LPTHREAD_START_ROUTINE) StreamThreadProc, this, 0, &dwThreadId );
-			
+			hStreamThread = CreateThread( NULL, 0, (LPTHREAD_START_ROUTINE) StreamThreadProc, this, 0, &dwThreadId );			
 			if (!hStreamThread)
 			{
 #ifdef DEBUG
@@ -248,13 +239,9 @@ GDAudioDriver::PlaySoundTrackIndex( int playTrackIndex )
 #ifdef DEBUG
 			else
 			{
-				DebugOutput(TEXT("[%d] StreamThread Created (dwThreadId=0x%x) for \"%s\"...\n"), currentContextIndex, dwThreadId, szWaveFile);
+				DebugOutput(TEXT("[%d] StreamThread Created (dwThreadId=0x%x) for \"%d\"...\n"), currentContextIndex, dwThreadId, playTrackIndex);
 			}
 #endif
-
-			// Start the sound playing
-			gddaContext->pdsbBackground->Play( 0, 0, DSBPLAY_LOOPING );
-
 			gddaContext->fPlayBackgroundSound = true; 			
 		}
 end:
