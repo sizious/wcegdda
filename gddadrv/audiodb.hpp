@@ -25,6 +25,7 @@ typedef struct _AUDIO_TRACK {
 } AUDIO_TRACK, *PAUDIO_TRACK;
 
 typedef struct _AUDIO_TRACK_CONTEXT {
+	int nTrackNumber;
 	HANDLE hTrackFile;
 	IDirectSoundBuffer * pSoundBuffer;
 	DWORD dwSoundDataOffset;
@@ -63,15 +64,15 @@ private:
 	HANDLE GetTrackFileHandle( const int audioTrackIndex );
 	IDirectSoundBuffer * GetTrackSoundBuffer( const int audioTrackIndex );
 
+	int FindAudioTrack( const int trackNumber );
+
 public:
 	GDAudioTrackDatabase();
 	~GDAudioTrackDatabase();
 	
 	size_t Count();
 	void Clear();
-	int FindAudioTrack( const int trackNumber );
-	PAUDIO_TRACK GetItems( const int itemIndex );
-
+	
 	bool GetAudioTrackContext( const int trackNumber, AUDIO_TRACK_CONTEXT * audioTrackContext );
 	
 	void Initialize( LPDIRECTSOUND pds );
@@ -80,6 +81,10 @@ public:
 	void SetSourceDirectory( TCHAR * szSourceDirectory );
 
 	void Register( TCHAR * szWaveFileName );
+
+#ifdef DEBUG
+	PAUDIO_TRACK GetItems( const int itemIndex );
+#endif
 };
 
 #endif /* __ARRAY_HPP__ */

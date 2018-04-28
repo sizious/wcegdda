@@ -369,6 +369,7 @@ GDAudioTrackDatabase::GetAudioTrackContext( const int trackNumber, AUDIO_TRACK_C
 		HANDLE hAudioTrackFile = this->GetTrackFileHandle( audioTrackIndex );
 		IDirectSoundBuffer * pAudioSoundBuffer = this->GetTrackSoundBuffer( audioTrackIndex );
 
+		audioTrackContext->nTrackNumber = trackNumber;
 		audioTrackContext->hTrackFile = hAudioTrackFile;
 		audioTrackContext->pSoundBuffer = pAudioSoundBuffer;
 		audioTrackContext->dwSoundDataOffset = this->_audioTrackList[ audioTrackIndex ]->dwSoundDataOffset;
