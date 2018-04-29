@@ -9,8 +9,7 @@ GDAudioDriver::Play( SEGACD_PLAYTRACK playtrack )
 	DebugOutput(TEXT("[%d] Command Start: Play\n"), this->gddaContextIndex);
 #endif
 
-	DWORD			dwThreadId;
-	GDDA_CONTEXT	*gddaContext;
+	GDDA_CONTEXT * gddaContext;
 
 	// If we are in PAUSE state, try to resume the sound instead of launching a new PLAY process
 	gddaContext = this->GetCurrentContext();
@@ -28,45 +27,13 @@ GDAudioDriver::Play( SEGACD_PLAYTRACK playtrack )
 	this->CleanUp();
 
 	// Start a new GDDA context
-	// Select an empty and ready-to-use slot
-	do
-	{
-		this->gddaContextIndex++; // this next slot was cleaned by the CleanUp method above. the only one slot that wasn't cleaned is the previous slot (see above)
-		if ( this->gddaContextIndex >= MAX_GDDA_CONTEXT )
-		{
-			this->gddaContextIndex = 0;
-		}
-		gddaContext = this->GetCurrentContext();
-	}
-	while( !gddaContext->fCleaned );
+	gddaContext = this->SetContext( playtrack );
 
-#ifdef DEBUG
-	DebugOutput(TEXT("[%d] Context slot is now chosen!\n"), this->gddaContextIndex);
-#endif
-
-	// Resetting the chosen slot.
-	this->Reset();
-
-	// Saving the current playtrack valuable data		
-	gddaContext->dwPreviousStartTrack = playtrack.dwStartTrack;
-	gddaContext->dwPreviousEndTrack = playtrack.dwEndTrack;
-
-	// Initializing sound parameters
-	gddaContext->playSoundStartIndex = playtrack.dwStartTrack;
-	gddaContext->playSoundEndIndex = playtrack.dwEndTrack + 1;	
-
-	// Get the repeat count number
-	gddaContext->playRepeatCount = playtrack.dwRepeat + 1;
+	// Executing the Watcher Thread (it will run the streaming process) 
+	DWORD dwThreadId;
+    gddaContext->hPlayCommandThread = CreateThread( NULL, 0, (LPTHREAD_START_ROUTINE) PlayCommandThreadProc, this, NULL, &dwThreadId );
+	IsThreadCreated( gddaContext->hPlayCommandThread, dwThreadId );
 	
-	// Infinite loop requested?
-	gddaContext->playRepeatCount = (gddaContext->playRepeatCount > 16) ? INT_MAX : gddaContext->playRepeatCount;
-	
-	// Notify the object, the music playback is started
-	gddaContext->fStarted = true;
-
-	// Executing the Watcher Thread (it will run the streaming process)
-    gddaContext->hPlayCommandThread = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE) PlayCommandThreadProc, this, 0, &dwThreadId);	
-
 #ifdef DEBUG
 	DebugOutput(TEXT("[%d] Command End: Play\n"), this->gddaContextIndex);
 #endif
@@ -76,14 +43,16 @@ GDAudioDriver::Play( SEGACD_PLAYTRACK playtrack )
 DWORD WINAPI
 GDAudioDriver::PlayCommandThreadProc( LPVOID lpParameter )
 {
-	GDAudioDriver *gdda = (GDAudioDriver*) lpParameter;
+	GDAudioDriver * gdda = (GDAudioDriver*) lpParameter;
+	
+	DWORD dwThreadId = GetCurrentThreadId();
+	int currentContextIndex = gdda->gddaContextIndex;
+	GDDA_CONTEXT * gddaContext = gdda->GetCurrentContext();
 
 	unsigned long repeatIndex = 0, soundIndex = 0, repeatCount, soundStartIndex, soundEndIndex;
-	int currentContextIndex = gdda->gddaContextIndex;	
-	GDDA_CONTEXT *gddaContext = gdda->GetCurrentContext();
 
 #ifdef DEBUG
-	DebugOutput(TEXT("[%d] PlayCommandThread: Start, context slot: #%d, repeat count: %d\n"), currentContextIndex, gdda->gddaContextIndex, gddaContext->playRepeatCount);
+	DebugOutput(TEXT("PlayCommandThread: (%d) [0x%08x] Start, context slot: #%d, repeat count: %d\n"), currentContextIndex, dwThreadId, gdda->gddaContextIndex, gddaContext->playRepeatCount);
 #endif
 
 	// Get parsed SEGACD_PLAYTRACK data
@@ -101,7 +70,7 @@ GDAudioDriver::PlayCommandThreadProc( LPVOID lpParameter )
 #ifdef DEBUG
 	else
 	{
-		DebugOutput(TEXT("[%d] PlayCommandThread: Mutex: Failed to get a valid mutex handle! (Error # = 0x%08x).\n"), currentContextIndex, GetLastError());
+		DebugOutput(TEXT("PlayCommandThread: (%d) [0x%08x] Mutex: Failed to get a valid mutex handle! (Error # = 0x%08x).\n"), currentContextIndex, dwThreadId, GetLastError());
 	}
 #endif
 
@@ -111,27 +80,25 @@ GDAudioDriver::PlayCommandThreadProc( LPVOID lpParameter )
 	{
 
 #ifdef DEBUG
-		DebugOutput(TEXT("[%d] PlayCommandThread: Executing SEGACD_PLAYTRACK sequence, track start: #%d, track end: #%d, repeat: #%d\n"), currentContextIndex, soundStartIndex, soundEndIndex, repeatCount);
+		DebugOutput(TEXT("PlayCommandThread: (%d) [0x%08x] Executing SEGACD_PLAYTRACK sequence, track start: #%d, track end: #%d, repeat: #%d\n"), currentContextIndex, dwThreadId, soundStartIndex, soundEndIndex, repeatCount);
 #endif
 
 		soundIndex = soundStartIndex;
 		while( !gddaContext->fExiting && soundIndex < soundEndIndex )
 		{
 
-#ifdef DEBUG
-			DebugOutput(TEXT("[%d] PlayCommandThread: Launching the play of the track #%d (%d of %d)...\n"), currentContextIndex, soundIndex, repeatIndex, repeatCount);
-#endif
 			// Playing the requested track index
-			HANDLE hStreamThread = gdda->PlaySoundTrackIndex( soundIndex );			
-			if ( hStreamThread )
+			gdda->PlaySoundTrackIndex( soundIndex, dwThreadId );			
+			if ( gddaContext->hStreamThread )
 			{
-
 #ifdef DEBUG
-				DebugOutput(TEXT("[%d] PlayCommandThread: Waiting for StreamThread...\n"), currentContextIndex);
+				DebugOutput(TEXT("PlayCommandThread: (%d) [0x%08x] Waiting for StreamThread...\n"), currentContextIndex, dwThreadId);
 #endif
-
-				WaitForSingleObject( hStreamThread, INFINITE );
-				CloseHandle( hStreamThread );
+				if ( gddaContext->hStreamThread )
+				{
+					WaitForSingleObject( gddaContext->hStreamThread, INFINITE );
+					gddaContext->hStreamThread = NULL;
+				}
 			}
 
 			if ( !gdda->IsPaused() )
@@ -147,72 +114,60 @@ GDAudioDriver::PlayCommandThreadProc( LPVOID lpParameter )
 	}
 
 #ifdef DEBUG
-	DebugOutput(TEXT("[%d] PlayCommandThread: Sound sequence play finished!\n"), currentContextIndex);
-	DebugOutput(TEXT("[%d] PlayCommandThread: Done!\n"), currentContextIndex);
+	DebugOutput(TEXT("PlayCommandThread: (%d) [0x%08x] Sound sequence play finished!\n"), currentContextIndex, dwThreadId);
+	DebugOutput(TEXT("PlayCommandThread: (%d) [0x%08x] Done!\n"), currentContextIndex, dwThreadId);
 #endif
 
 	return 0;
 }
 
 HANDLE
-GDAudioDriver::PlaySoundTrackIndex( int playTrackIndex )
+GDAudioDriver::PlaySoundTrackIndex( int playTrackIndex, DWORD dwThreadId )
 {
+	HANDLE hStreamThreadCreated = NULL;
 	int currentContextIndex = this->gddaContextIndex;
-	HANDLE hStreamThread = NULL;
+
 	HANDLE hIOMutex = CreateMutex( NULL, FALSE, NULL );
 	if ( hIOMutex )
 	{
 		WaitForSingleObject( hIOMutex, INFINITE );
      
-		DWORD			dwThreadId;
 		ULONG			nBytes1, nBytes2, cbRead;
 		BYTE			*pbyBlock1, *pbyBlock2;
-		GDDA_CONTEXT	*gddaContext = this->GetCurrentContext();
+	
+		
+		GDDA_CONTEXT * gddaContext = this->GetCurrentContext();
 
 		// Check if the driver is ready
 		if ( !this->IsReady() )
 		{
 #ifdef DEBUG
-			DebugOutput(TEXT("[%d] PlayCommandThread: PlaySoundTrackIndex: Driver is NOT ready!\n"), currentContextIndex);
+			DebugOutput(TEXT("PlayCommandThread: (%d) [0x%08x] PlaySoundTrackIndex: Driver is NOT ready!\n"), currentContextIndex, dwThreadId);
 #endif			
 			goto end;
 		}
 
 #ifdef DEBUG
-		DebugOutput(TEXT("[%d] PlayCommandThread: PlaySoundTrackIndex: Launching playback for \"%d\"...\n"), currentContextIndex, playTrackIndex);
+		DebugOutput(TEXT("PlayCommandThread: (%d) [0x%08x] PlaySoundTrackIndex: Launching playback for \"%d\"...\n"), currentContextIndex, dwThreadId, playTrackIndex);
 #endif
 
-		// Loading audio context! FIXME
+		// Loading audio context!
 		AUDIO_TRACK_CONTEXT audioTrackContext;
-		if ( !this->_audiodb.GetAudioTrackContext( playTrackIndex, &audioTrackContext ) )
-		{				
+		if ( !this->_audiomgr.GetAudioTrackContext( playTrackIndex, &audioTrackContext ) )
+		{		
 #ifdef DEBUG
-			DebugOutput(TEXT("[%d] PlayCommandThread: PlaySoundTrackIndex: Sorry, GetAudioTrackContext failed...\n"), currentContextIndex);
+			DebugOutput(TEXT("PlayCommandThread: (%d) [0x%08x] PlaySoundTrackIndex: Sorry, GetAudioTrackContext FAILED!!!\n"), currentContextIndex, dwThreadId);
 #endif
 			goto end;
 		}
 		
-
-		// Load the wav file that we want to stream in the background.
+		// Initializing important variables
+		gddaContext->hSoundNotifyEvent = audioTrackContext.hEventNotify;
 		gddaContext->hSoundFile = audioTrackContext.hTrackFile;
-		if ( gddaContext->hSoundFile == INVALID_HANDLE_VALUE )
-		{		
-#ifdef DEBUG
-			DebugOutput(TEXT("[%d] PlayCommandThread: PlaySoundTrackIndex: Sorry, track \"%d\" doesn't exists...\n"), currentContextIndex, playTrackIndex);
-#endif
-			goto end;
-		}
-
 		gddaContext->pdsbBackground = audioTrackContext.pSoundBuffer;
 
 		// Set file pointer to point to start of data
 		SetFilePointer( gddaContext->hSoundFile, audioTrackContext.dwSoundDataOffset, NULL, FILE_BEGIN );
-
-		// Prepare the wav file for streaming (set up event notifications)
-		if ( !PrepareForStreaming( gddaContext->pdsbBackground, BUFFERSIZE, &gddaContext->hSoundNotifyEvent ) )
-		{
-			goto end;
-		}
 
 		// Sound resume event
 		gddaContext->hSoundResumeEvent = CreateEvent( NULL, FALSE, FALSE, NULL );
@@ -227,22 +182,16 @@ GDAudioDriver::PlaySoundTrackIndex( int playTrackIndex )
 			// Start the sound playing
 			gddaContext->pdsbBackground->Play( 0, 0, DSBPLAY_LOOPING );
 
+
+			DWORD dwThreadId;
+
 			// Create a separate thread which will handling streaming the sound
-			hStreamThread = CreateThread( NULL, 0, (LPTHREAD_START_ROUTINE) StreamThreadProc, this, 0, &dwThreadId );			
-			if (!hStreamThread)
+			gddaContext->hStreamThread = CreateThread( NULL, 0, (LPTHREAD_START_ROUTINE) StreamThreadProc, this, NULL, &dwThreadId );
+			if ( this->IsThreadCreated( gddaContext->hStreamThread, dwThreadId ) )
 			{
-#ifdef DEBUG
-				DebugOutput(TEXT("[%d] Error calling CreateThread for StreamThread!\n"), currentContextIndex);
-#endif
-				goto end;
-			}
-#ifdef DEBUG
-			else
-			{
-				DebugOutput(TEXT("[%d] StreamThread Created (dwThreadId=0x%x) for \"%d\"...\n"), currentContextIndex, dwThreadId, playTrackIndex);
-			}
-#endif
-			gddaContext->fPlayBackgroundSound = true; 			
+				hStreamThreadCreated = gddaContext->hStreamThread;
+				gddaContext->fPlayBackgroundSound = true;
+			}						
 		}
 end:
 		ReleaseMutex( hIOMutex );
@@ -250,9 +199,9 @@ end:
 #ifdef DEBUG
 	else
 	{
-		DebugOutput(TEXT("[%d] PlayCommandThread: PlaySoundTrackIndex Mutex: Failed to get a valid mutex handle! (Error # = 0x%08x).\n"), currentContextIndex, GetLastError());
+		DebugOutput(TEXT("PlayCommandThread: (%d) [0x%08x] PlaySoundTrackIndex Mutex: Failed to get a valid mutex handle! (Error # = 0x%08x).\n"), currentContextIndex, dwThreadId, GetLastError());
 	}
 #endif
 
-	return hStreamThread;
+	return hStreamThreadCreated;
 }

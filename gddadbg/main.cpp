@@ -5,7 +5,7 @@
 
 #include "utils.hpp"
 
-#define STRESS_TESTS_COUNT	100
+#define STRESS_TESTS_COUNT	50
 
 GDAudioDriver gdda;
 LPDIRECTSOUND pds = NULL;
@@ -169,6 +169,9 @@ ExecutePlayStrongStressTest()
 		PlayTrack( nTrackNumber, nTrackNumber, 1 );
 
 		int r = GetRandomNumber(1, 18) % 3;
+#ifdef DEBUG
+		DebugOutput( TEXT("Waiting for %d second(s)...\n"), r);
+#endif
 		Sleep(1000 * r);	
 	}
 }
@@ -191,6 +194,24 @@ ExecutePlayStressTest()
 	}
 }
 
+/*
+void
+ExecuteAudioMgrStressTest()
+{
+	for(int i = 0; i < STRESS_TESTS_COUNT; i++) 
+	{
+		int audioIndex = (i % 5) + 4;
+		
+		AUDIO_TRACK_CONTEXT audioTrackContext;
+		HANDLE hSoundNotifyEvent;
+
+		gdda._audiomgr.GetAudioTrackContext( audioIndex, &audioTrackContext, &hSoundNotifyEvent );
+		DebugOutput( TEXT("%d %d\n"), audioTrackContext.nTrackNumber, audioTrackContext.dwSoundDataOffset );
+		Sleep( 2000 );
+	}
+}
+*/
+
 extern "C" int APIENTRY 
 WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPTSTR lpCmdLine, int nCmdShow )
 {	
@@ -201,6 +222,10 @@ WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPTSTR lpCmdLine, int nCm
 	if( Initialize() )
 	{	
 		ExecutePlayStrongStressTest();
+//		Sleep( 5000 );
+
+//		PlayTrack( 99, 99, 1 );
+//		Sleep( 20000 );
 
 		Finalize();
 	}

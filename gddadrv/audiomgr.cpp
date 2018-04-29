@@ -1,16 +1,16 @@
-#include "audiodb.hpp"
+#include "audiomgr.hpp"
 
 // Thanks to casablanca
 // https://stackoverflow.com/a/3536261/3726096
 
-GDAudioTrackDatabase::GDAudioTrackDatabase()
+GDAudioTrackManager::GDAudioTrackManager()
 {
 	this->_audioTrackListUsed = 0;
 	this->_audioTrackList = (AUDIO_TRACK **) malloc( AUDIO_TRACK_DATABASE_INITIAL_SIZE * sizeof( AUDIO_TRACK * ) );	
 	this->_audioTrackListSize = AUDIO_TRACK_DATABASE_INITIAL_SIZE;
 
 	this->_soundBufferListUsed = 0;
-	this->_soundBufferList = (DIRECTSOUND_BUFFER **) malloc( AUDIO_TRACK_DATABASE_INITIAL_SIZE * sizeof( DIRECTSOUND_BUFFER *) );
+	this->_soundBufferList = (DIRECTSOUND_BUFFER_CONTEXT **) malloc( AUDIO_TRACK_DATABASE_INITIAL_SIZE * sizeof( DIRECTSOUND_BUFFER_CONTEXT *) );
 	this->_soundBufferListSize = AUDIO_TRACK_DATABASE_INITIAL_SIZE;
 	this->_isSoundBuffersCreated = false;
 
@@ -20,9 +20,9 @@ GDAudioTrackDatabase::GDAudioTrackDatabase()
 	this->maxTrackNumber = 0;
 }
 
-GDAudioTrackDatabase::~GDAudioTrackDatabase()
+GDAudioTrackManager::~GDAudioTrackManager()
 {
-	this->ClearSoundBuffers();
+	this->ClearSoundBuffers( true );
 	
 	this->Clear();
 	
@@ -42,7 +42,7 @@ GDAudioTrackDatabase::~GDAudioTrackDatabase()
 }
 
 void
-GDAudioTrackDatabase::Clear()
+GDAudioTrackManager::Clear()
 {
 	for(size_t i = 0; i < this->Count(); i++)
 	{
@@ -59,17 +59,18 @@ GDAudioTrackDatabase::Clear()
 }
 
 void
-GDAudioTrackDatabase::ClearSoundBuffers()
+GDAudioTrackManager::ClearSoundBuffers( bool isObjectDestroying )
 {
 	for( size_t i = 0; i < this->_soundBufferListUsed; i++ )
 	{
 		if ( this->_soundBufferList[ i ] )
 		{
 			IDirectSoundBuffer * pSoundBuffer = this->_soundBufferList[ i ]->pSoundBuffer;
-			if ( pSoundBuffer ) 
+			if ( pSoundBuffer && !isObjectDestroying ) 
 			{
-//				pSoundBuffer->Release();
-				// not implemented on Windows CE for Dreamcast!!!!!!
+				// This is implemented but seems to be unstable on Windows CE for Dreamcast...
+				// So when this method is executed from the destructor, an error is thrown.
+				pSoundBuffer->Release();			
 			}
 			this->_soundBufferList[ i ] = NULL;
 		}
@@ -79,7 +80,7 @@ GDAudioTrackDatabase::ClearSoundBuffers()
 }
 
 void 
-GDAudioTrackDatabase::Register( TCHAR * szWaveFileName )
+GDAudioTrackManager::Register( TCHAR * szWaveFileName )
 {
 	this->_isAudioTracksIndexed = false;
 
@@ -108,28 +109,37 @@ GDAudioTrackDatabase::Register( TCHAR * szWaveFileName )
 	// Open the file handle and store it
 	audioTrackElement->hTrackFile = CreateFile( szWaveFullPathName, GENERIC_READ, 0, NULL, OPEN_EXISTING, 0, NULL );
 
-	// Read the first 256 bytes to get file header
-	ULONG cbRead;
-	BYTE byTemp[256], *pbyData;
-	ReadFile( audioTrackElement->hTrackFile, byTemp, sizeof(byTemp), &cbRead, NULL );		
+	if ( audioTrackElement->hTrackFile == INVALID_HANDLE_VALUE )
+	{		
+#ifdef DEBUG
+		DebugOutput( TEXT("Sorry, %s was not properly opened...\n"), szWaveFullPathName );
+#endif
+	}
+	else
+	{
+		// Read the first 256 bytes to get file header
+		ULONG cbRead;
+		BYTE byTemp[256], *pbyData;
+		ReadFile( audioTrackElement->hTrackFile, byTemp, sizeof(byTemp), &cbRead, NULL );		
 
-	// Parse the header information to get information.
-	DWORD dwSize;
-	WAVEFORMATEX * pwfx;
-	ParseWaveFile( (void*)byTemp, &pwfx, &pbyData, &dwSize );
+		// Parse the header information to get information.
+		DWORD dwSize;
+		WAVEFORMATEX * pwfx;
+		ParseWaveFile( (void*)byTemp, &pwfx, &pbyData, &dwSize );
 
-	// Store the important information about the wave file.
-	// This will be used with the CreateSoundBuffer function.
-	audioTrackElement->nSamplesPerSec = pwfx->nSamplesPerSec;
-	audioTrackElement->wBitsPerSample = pwfx->wBitsPerSample;
+		// Store the important information about the wave file.
+		// This will be used with the CreateSoundBuffer function.
+		audioTrackElement->nSamplesPerSec = pwfx->nSamplesPerSec;
+		audioTrackElement->wBitsPerSample = pwfx->wBitsPerSample;
 
-	// Store the location of wave data in the file
-	audioTrackElement->dwSoundDataOffset = (DWORD)(pbyData - byTemp);
+		// Store the location of wave data in the file
+		audioTrackElement->dwSoundDataOffset = (DWORD)(pbyData - byTemp);
 
-	this->RegisterSoundBuffer( pwfx->nSamplesPerSec, pwfx->wBitsPerSample );
+		this->RegisterSoundBuffer( pwfx->nSamplesPerSec, pwfx->wBitsPerSample );
 
-	// Add the object to the list
-	this->_audioTrackList[this->_audioTrackListUsed++] = audioTrackElement;
+		// Add the object to the list
+		this->_audioTrackList[this->_audioTrackListUsed++] = audioTrackElement;
+	}
 }
 
 /*+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -156,7 +166,7 @@ Return Value:
 
 -------------------------------------------------------------------*/
 IDirectSoundBuffer *
-GDAudioTrackDatabase::CreateSoundBuffer( int nSamplesPerSec, WORD wBitsPerSample, DWORD dwBufferSize )
+GDAudioTrackManager::CreateSoundBuffer( int nSamplesPerSec, WORD wBitsPerSample, DWORD dwBufferSize )
 {
     IDirectSoundBuffer	*pdsb			= NULL;
     DSBUFFERDESC		dsbd			= {0};
@@ -185,10 +195,10 @@ GDAudioTrackDatabase::CreateSoundBuffer( int nSamplesPerSec, WORD wBitsPerSample
     return pdsb;
 }
 
-IDirectSoundBuffer *
-GDAudioTrackDatabase::GetTrackSoundBuffer( const int audioTrackIndex )
+DIRECTSOUND_BUFFER_CONTEXT *
+GDAudioTrackManager::GetDirectSoundBufferContext( const int audioTrackIndex )
 {
-	IDirectSoundBuffer * result = NULL;
+	DIRECTSOUND_BUFFER_CONTEXT * result = NULL;
 
 	if ( audioTrackIndex != -1 )
 	{
@@ -197,7 +207,7 @@ GDAudioTrackDatabase::GetTrackSoundBuffer( const int audioTrackIndex )
 		if ( soundBufferIndex != -1 )
 		{			
 			this->CreateSoundBuffers();
-			result = this->_soundBufferList[ soundBufferIndex ]->pSoundBuffer;
+			result = this->_soundBufferList[ soundBufferIndex ];
 		}
 	}
 
@@ -205,13 +215,13 @@ GDAudioTrackDatabase::GetTrackSoundBuffer( const int audioTrackIndex )
 }
 
 size_t
-GDAudioTrackDatabase::Count()
+GDAudioTrackManager::Count()
 {
 	return this->_audioTrackListUsed;
 }
 
 int
-GDAudioTrackDatabase::FindAudioTrack( const int trackNumber )
+GDAudioTrackManager::FindAudioTrack( const int trackNumber )
 {
 	int result = -1;
 	
@@ -230,7 +240,7 @@ GDAudioTrackDatabase::FindAudioTrack( const int trackNumber )
 }
 
 HANDLE
-GDAudioTrackDatabase::GetTrackFileHandle( const int audioTrackIndex )
+GDAudioTrackManager::GetTrackFileHandle( const int audioTrackIndex )
 {
 	HANDLE hFileResult = NULL;
 	
@@ -246,25 +256,25 @@ GDAudioTrackDatabase::GetTrackFileHandle( const int audioTrackIndex )
 }
 
 PAUDIO_TRACK
-GDAudioTrackDatabase::GetItems( const int itemIndex )
+GDAudioTrackManager::GetItems( const int itemIndex )
 {
 	return this->_audioTrackList[ itemIndex ];
 }
 
 TCHAR * 
-GDAudioTrackDatabase::GetSourceDirectory()
+GDAudioTrackManager::GetSourceDirectory()
 {
 	return this->szDirectory;
 }
 
 void
-GDAudioTrackDatabase::SetSourceDirectory( TCHAR * szSourceDirectory )
+GDAudioTrackManager::SetSourceDirectory( TCHAR * szSourceDirectory )
 {
 	memcpy( this->szDirectory, szSourceDirectory, _tcslen( szSourceDirectory ) * sizeof(TCHAR) );
 }
 
 void
-GDAudioTrackDatabase::ClearAudioTrackIndexes()
+GDAudioTrackManager::ClearAudioTrackIndexes()
 {
 	this->_isAudioTracksIndexed = false;
 	if ( this->hashtable ) 
@@ -275,7 +285,7 @@ GDAudioTrackDatabase::ClearAudioTrackIndexes()
 }
 
 void
-GDAudioTrackDatabase::CreateAudioTrackIndexes()
+GDAudioTrackManager::CreateAudioTrackIndexes()
 {
 	this->ClearAudioTrackIndexes();
 	this->hashtable = (int *) malloc( (this->maxTrackNumber + 1) * sizeof( int ) );
@@ -290,17 +300,17 @@ GDAudioTrackDatabase::CreateAudioTrackIndexes()
 }
 
 void
-GDAudioTrackDatabase::RegisterSoundBuffer( int nSamplesPerSec, WORD wBitsPerSample )
+GDAudioTrackManager::RegisterSoundBuffer( int nSamplesPerSec, WORD wBitsPerSample )
 {
 	if ( this->FindSoundBuffer( nSamplesPerSec, wBitsPerSample ) == -1 )
 	{
 		if ( this->_soundBufferListUsed == this->_soundBufferListSize ) 
 		{
 			this->_soundBufferListSize *= 2;
-			this->_soundBufferList = (DIRECTSOUND_BUFFER **) realloc( this->_soundBufferList, this->_soundBufferListSize * sizeof( DIRECTSOUND_BUFFER * ) );		
+			this->_soundBufferList = (DIRECTSOUND_BUFFER_CONTEXT **) realloc( this->_soundBufferList, this->_soundBufferListSize * sizeof( DIRECTSOUND_BUFFER_CONTEXT * ) );		
 		}
 
-		PDIRECTSOUND_BUFFER soundBufferElement = (DIRECTSOUND_BUFFER *) malloc( sizeof( DIRECTSOUND_BUFFER ) );
+		PDIRECTSOUND_BUFFER_CONTEXT soundBufferElement = (DIRECTSOUND_BUFFER_CONTEXT *) malloc( sizeof( DIRECTSOUND_BUFFER_CONTEXT ) );
 		
 		soundBufferElement->nSamplesPerSec = nSamplesPerSec;
 		soundBufferElement->wBitsPerSample = wBitsPerSample;
@@ -312,11 +322,11 @@ GDAudioTrackDatabase::RegisterSoundBuffer( int nSamplesPerSec, WORD wBitsPerSamp
 }
 
 int
-GDAudioTrackDatabase::FindSoundBuffer( int nSamplesPerSec, WORD wBitsPerSample )
+GDAudioTrackManager::FindSoundBuffer( int nSamplesPerSec, WORD wBitsPerSample )
 {
 	for(size_t i = 0; i < this->_soundBufferListUsed; i++)
 	{
-		PDIRECTSOUND_BUFFER soundBuffer = this->_soundBufferList[ i ];
+		PDIRECTSOUND_BUFFER_CONTEXT soundBuffer = this->_soundBufferList[ i ];
 		if ( soundBuffer->nSamplesPerSec == nSamplesPerSec && soundBuffer->wBitsPerSample )
 		{
 			return i;
@@ -327,13 +337,13 @@ GDAudioTrackDatabase::FindSoundBuffer( int nSamplesPerSec, WORD wBitsPerSample )
 }
 
 void
-GDAudioTrackDatabase::Initialize( LPDIRECTSOUND pds )
+GDAudioTrackManager::Initialize( LPDIRECTSOUND pds )
 {
 	this->pds = pds;
 }
 
 void
-GDAudioTrackDatabase::CreateSoundBuffers()
+GDAudioTrackManager::CreateSoundBuffers()
 {
 	if ( !this->_isSoundBuffersCreated )
 	{
@@ -341,17 +351,24 @@ GDAudioTrackDatabase::CreateSoundBuffers()
 #ifdef DEBUG
 		if ( !this->pds )
 		{
-			DebugOutput( TEXT("ERROR: GDAudioTrackDatabase::Initialize() WAS NOT CALLED!\n") );
+			DebugOutput( TEXT("ERROR: GDAudioTrackManager::Initialize() WAS NOT CALLED!\n") );
 			return;
 		}
 #endif
 
 		for(size_t i = 0; i < this->_soundBufferListUsed; i++)
 		{
-			PDIRECTSOUND_BUFFER soundBuffer = this->_soundBufferList[ i ];
-			if ( soundBuffer->pSoundBuffer == NULL )
+			PDIRECTSOUND_BUFFER_CONTEXT soundBufferContext = this->_soundBufferList[ i ];
+			if ( soundBufferContext->pSoundBuffer == NULL )
 			{
-				this->_soundBufferList[ i ]->pSoundBuffer = this->CreateSoundBuffer( soundBuffer->nSamplesPerSec, soundBuffer->wBitsPerSample, BUFFERSIZE );
+				// Create the sound buffer
+				IDirectSoundBuffer * pSoundBuffer = this->CreateSoundBuffer( soundBufferContext->nSamplesPerSec, soundBufferContext->wBitsPerSample, BUFFERSIZE );
+				
+				// Create the event
+				this->PrepareForStreaming( pSoundBuffer, BUFFERSIZE, &soundBufferContext->hEventNotify );
+
+				// Store the result...
+				this->_soundBufferList[ i ]->pSoundBuffer = pSoundBuffer;
 			}
 		}
 		this->_isSoundBuffersCreated = true;
@@ -359,7 +376,7 @@ GDAudioTrackDatabase::CreateSoundBuffers()
 }
 
 bool
-GDAudioTrackDatabase::GetAudioTrackContext( const int trackNumber, AUDIO_TRACK_CONTEXT * audioTrackContext )
+GDAudioTrackManager::GetAudioTrackContext( const int trackNumber, AUDIO_TRACK_CONTEXT * audioTrackContext )
 {	
 	bool result = false;
 
@@ -367,19 +384,99 @@ GDAudioTrackDatabase::GetAudioTrackContext( const int trackNumber, AUDIO_TRACK_C
 	if ( audioTrackIndex != -1 && audioTrackContext != NULL )
 	{
 		HANDLE hAudioTrackFile = this->GetTrackFileHandle( audioTrackIndex );
-		IDirectSoundBuffer * pAudioSoundBuffer = this->GetTrackSoundBuffer( audioTrackIndex );
+		DIRECTSOUND_BUFFER_CONTEXT * pDirectSoundBufferContext = this->GetDirectSoundBufferContext( audioTrackIndex );
 
 		audioTrackContext->nTrackNumber = trackNumber;
-		audioTrackContext->hTrackFile = hAudioTrackFile;
-		audioTrackContext->pSoundBuffer = pAudioSoundBuffer;
+		audioTrackContext->hTrackFile = hAudioTrackFile;	
 		audioTrackContext->dwSoundDataOffset = this->_audioTrackList[ audioTrackIndex ]->dwSoundDataOffset;
+
+		audioTrackContext->pSoundBuffer = pDirectSoundBufferContext->pSoundBuffer;
+		audioTrackContext->hEventNotify = pDirectSoundBufferContext->hEventNotify;
 
 		result = true;
 	}
 	else
 	{
+#ifdef DEBUG
+		DebugOutput( TEXT("GetAudioTrackContext: Unable to find the track %d...\n"), trackNumber );
+#endif
 		audioTrackContext = NULL;
 	}
+
+	return result;
+}
+
+/*+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+Function:
+
+    PrepareForStreaming
+
+Description:
+
+    Prepares the specified buffer for streaming by setting up events
+    to notify the app when the buffer has reached the halfway point or
+    the end point - at either of those, it starts filling in one side of
+    the buffer while playing the other side of the buffer (assuming it's
+    repeating).
+    
+Arguments:
+
+    IDirectSoundBuffer *pdsb        - The sound buffer to prepare
+
+    DWORD dwBufferSize;             - Size of the buffer
+
+    HANDLE *phEventNotify           - This event set when halfway or at end
+
+    HANDLE *phEventDone             - This event set when sound is done playing
+
+Return Value:
+
+    true on success, false on failure.
+
+-------------------------------------------------------------------*/
+bool
+GDAudioTrackManager::PrepareForStreaming( IDirectSoundBuffer *pdsb, DWORD dwBufferSize, HANDLE *phEventNotify )
+{
+	bool				result = false;
+	IDirectSoundNotify	*pdsn;
+	DSBPOSITIONNOTIFY	rgdsbpn[3];
+	
+    // Get a DirectSoundNotify interface so that we can set the events.
+    int errLast = pdsb->QueryInterface( IID_IDirectSoundNotify, (void **)&pdsn );
+    if ( errLast == 0 )
+	{
+		*phEventNotify = CreateEvent( NULL, FALSE, FALSE, NULL );
+
+		rgdsbpn[0].hEventNotify = *phEventNotify;
+		rgdsbpn[1].hEventNotify = *phEventNotify;
+		rgdsbpn[2].hEventNotify = *phEventNotify;
+		rgdsbpn[0].dwOffset     = dwBufferSize / 2;
+		rgdsbpn[1].dwOffset     = dwBufferSize - 2;
+		rgdsbpn[2].dwOffset     = DSBPN_OFFSETSTOP;
+
+		errLast = pdsn->SetNotificationPositions( 3, rgdsbpn );
+		if ( errLast == 0 )
+		{
+			// No longer need the DirectSoundNotify interface, so release it
+			pdsn->Release();
+
+			// Success...
+			result = true;
+		}
+#ifdef DEBUG
+		else
+		{
+			DebugOutput( TEXT("PrepareForStreaming: SetNotificationPositions failed (0x%x)\n"), errLast );
+		}
+#endif
+	}
+#ifdef DEBUG
+	else
+	{
+		DebugOutput( TEXT("PrepareForStreaming: QueryInterface failed (0x%x)\n"), errLast );
+	}
+#endif
 
 	return result;
 }

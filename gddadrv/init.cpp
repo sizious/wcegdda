@@ -2,6 +2,70 @@
 #include "error.hpp"
 #include "utils.hpp"
 
+GDAudioDriver::GDAudioDriver()
+{
+#ifdef DEBUG
+	DebugOutput(TEXT("GDAudioDriver initializing...\n"));
+#endif
+
+	this->isInstanceDestroyed = false;
+	this->isCleaningFinished = false;
+	this->pds = NULL;
+	this->gddaContextIndex = 0;	
+	
+	memset( this->gddaContextStorage, 0, sizeof(this->gddaContextStorage) );
+	for(int i = 0; i < MAX_GDDA_CONTEXT; i++)
+	{
+		this->gddaContextStorage[i].fCleaned = true;
+		this->gddaContextStorage[i].pdsbBackground = NULL;
+		this->gddaContextStorage[i].hPlayCommandThread = NULL;
+		this->gddaContextStorage[i].hSoundFile = NULL;
+		this->gddaContextStorage[i].hSoundNotifyEvent = NULL;
+		this->gddaContextStorage[i].hSoundResumeEvent = NULL;		
+	}
+
+	InitializeCriticalSection( &csThread );
+
+	this->DiscoverTrackFiles();
+
+#ifdef DEBUG
+	DebugOutput(TEXT("GDAudioDriver initializing is done!\n"));
+#endif
+}
+
+GDAudioDriver::~GDAudioDriver()
+{
+#ifdef DEBUG
+	DebugOutput(TEXT("GDAudioDriver finalizing...\n"));
+#endif
+
+	// Stop the current sound (if needed)
+	this->Stop();
+
+	this->isInstanceDestroyed = true;
+	this->CleanUp();
+
+	// Clear all thread
+	for(int i = 0; i < MAX_GDDA_CONTEXT; i++)
+	{
+		GDDA_CONTEXT currentContext = this->gddaContextStorage[ i ];
+		this->CleanThread( currentContext.hStreamThread );
+		this->CleanThread( currentContext.hPlayCommandThread );
+	}
+	this->CleanThread( this->hCleanerThread );
+
+#ifdef DEBUG
+	DebugOutput(TEXT("GDAudioDriver finalizing is done!\n"));
+#endif
+}
+
+void
+GDAudioDriver::Initialize( LPDIRECTSOUND pds )
+{
+	this->pds = pds;
+	this->_audiomgr.Initialize( pds );
+}
+
 bool 
 GDAudioDriver::DiscoverTrackFiles()
 {
@@ -12,11 +76,11 @@ GDAudioDriver::DiscoverTrackFiles()
 	DWORD dwError = 0xDEADBEEF;
 	
 	_stprintf( szDir, TEXT("\\CD-ROM\\GDDA\\TRACK??.WAV") );
-	this->_audiodb.SetSourceDirectory( TEXT("\\CD-ROM\\GDDA\\") );
+	this->_audiomgr.SetSourceDirectory( TEXT("\\CD-ROM\\GDDA\\") );
 
 #ifdef DEBUG
 	_stprintf( szDir, TEXT("\\PC\\Applications\\GDDA\\TRACK??.WAV") );
-	this->_audiodb.SetSourceDirectory( TEXT("\\PC\\Applications\\GDDA\\") );
+	this->_audiomgr.SetSourceDirectory( TEXT("\\PC\\Applications\\GDDA\\") );
 #endif
 
 #ifdef DEBUG
@@ -31,7 +95,7 @@ GDAudioDriver::DiscoverTrackFiles()
 		{
 			if ( !(ffd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) )
 			{				
-				this->_audiodb.Register( ffd.cFileName );
+				this->_audiomgr.Register( ffd.cFileName );
 #ifdef DEBUG
 				filesize.LowPart = ffd.nFileSizeLow;
 				filesize.HighPart = ffd.nFileSizeHigh;								
@@ -55,9 +119,9 @@ GDAudioDriver::DiscoverTrackFiles()
 
 #if DEBUG
 	DebugOutput( TEXT("Registered tracks...\n") );
-	for(size_t i = 0; i < this->_audiodb.Count(); i++)
+	for(size_t i = 0; i < this->_audiomgr.Count(); i++)
 	{
-		DebugOutput( TEXT("  trackNumber: %d\n"), this->_audiodb.GetItems( i )->nTrackNumber );
+		DebugOutput( TEXT("  trackNumber: %d\n"), this->_audiomgr.GetItems( i )->nTrackNumber );
 	}
 
 #endif

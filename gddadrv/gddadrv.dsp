@@ -81,45 +81,68 @@ LIB32=link.exe -lib
 # PROP Default_Filter "cpp;c;cxx;rc;def;r;odl;idl;hpj;bat"
 # Begin Source File
 
-SOURCE=.\audiodb.cpp
+SOURCE=.\audiomgr.cpp
+DEP_CPP_AUDIO=\
+	".\audiomgr.hpp"\
+	".\error.hpp"\
+	".\extrapi.hpp"\
+	".\utils.hpp"\
+	
 # End Source File
 # Begin Source File
 
 SOURCE=.\clean.cpp
 DEP_CPP_CLEAN=\
+	".\audiomgr.hpp"\
 	".\error.hpp"\
+	".\extrapi.hpp"\
 	".\gddadrv.hpp"\
-	
-NODEP_CPP_CLEAN=\
-	".\eddcdrm.h"\
-	".\eddstor.h"\
-	".\egagdrm.h"\
+	".\utils.hpp"\
+	{$(INCLUDE)}"ceddcdrm.h"\
+	{$(INCLUDE)}"ceddstor.h"\
+	{$(INCLUDE)}"segagdrm.h"\
 	
 # End Source File
 # Begin Source File
 
-SOURCE=.\dsutils.cpp
-DEP_CPP_DSUTI=\
+SOURCE=.\commands.cpp
+DEP_CPP_COMMA=\
+	".\audiomgr.hpp"\
 	".\error.hpp"\
+	".\extrapi.hpp"\
 	".\gddadrv.hpp"\
+	".\utils.hpp"\
+	{$(INCLUDE)}"ceddcdrm.h"\
+	{$(INCLUDE)}"ceddstor.h"\
+	{$(INCLUDE)}"segagdrm.h"\
 	
-NODEP_CPP_DSUTI=\
-	".\eddcdrm.h"\
-	".\eddstor.h"\
-	".\egagdrm.h"\
+# End Source File
+# Begin Source File
+
+SOURCE=.\context.cpp
+DEP_CPP_CONTE=\
+	".\audiomgr.hpp"\
+	".\error.hpp"\
+	".\extrapi.hpp"\
+	".\gddadrv.hpp"\
+	".\utils.hpp"\
+	{$(INCLUDE)}"ceddcdrm.h"\
+	{$(INCLUDE)}"ceddstor.h"\
+	{$(INCLUDE)}"segagdrm.h"\
 	
 # End Source File
 # Begin Source File
 
 SOURCE=.\error.cpp
 DEP_CPP_ERROR=\
+	".\audiomgr.hpp"\
 	".\error.hpp"\
+	".\extrapi.hpp"\
 	".\gddadrv.hpp"\
-	
-NODEP_CPP_ERROR=\
-	".\eddcdrm.h"\
-	".\eddstor.h"\
-	".\egagdrm.h"\
+	".\utils.hpp"\
+	{$(INCLUDE)}"ceddcdrm.h"\
+	{$(INCLUDE)}"ceddstor.h"\
+	{$(INCLUDE)}"segagdrm.h"\
 	
 # End Source File
 # Begin Source File
@@ -133,58 +156,56 @@ DEP_CPP_EXTRA=\
 
 SOURCE=.\init.cpp
 DEP_CPP_INIT_=\
+	".\audiomgr.hpp"\
 	".\error.hpp"\
 	".\extrapi.hpp"\
 	".\gddadrv.hpp"\
 	".\utils.hpp"\
-	
-NODEP_CPP_INIT_=\
-	".\eddcdrm.h"\
-	".\eddstor.h"\
-	".\egagdrm.h"\
+	{$(INCLUDE)}"ceddcdrm.h"\
+	{$(INCLUDE)}"ceddstor.h"\
+	{$(INCLUDE)}"segagdrm.h"\
 	
 # End Source File
 # Begin Source File
 
 SOURCE=.\main.cpp
 DEP_CPP_MAIN_=\
+	".\audiomgr.hpp"\
 	".\error.hpp"\
 	".\extrapi.hpp"\
 	".\gddadrv.hpp"\
 	".\utils.hpp"\
-	
-NODEP_CPP_MAIN_=\
-	".\eddcdrm.h"\
-	".\eddstor.h"\
-	".\egagdrm.h"\
+	{$(INCLUDE)}"ceddcdrm.h"\
+	{$(INCLUDE)}"ceddstor.h"\
+	{$(INCLUDE)}"segagdrm.h"\
 	
 # End Source File
 # Begin Source File
 
 SOURCE=.\playcmd.cpp
 DEP_CPP_PLAYC=\
+	".\audiomgr.hpp"\
 	".\error.hpp"\
 	".\extrapi.hpp"\
 	".\gddadrv.hpp"\
 	".\utils.hpp"\
-	
-NODEP_CPP_PLAYC=\
-	".\eddcdrm.h"\
-	".\eddstor.h"\
-	".\egagdrm.h"\
+	{$(INCLUDE)}"ceddcdrm.h"\
+	{$(INCLUDE)}"ceddstor.h"\
+	{$(INCLUDE)}"segagdrm.h"\
 	
 # End Source File
 # Begin Source File
 
 SOURCE=.\stream.cpp
 DEP_CPP_STREA=\
+	".\audiomgr.hpp"\
 	".\error.hpp"\
+	".\extrapi.hpp"\
 	".\gddadrv.hpp"\
-	
-NODEP_CPP_STREA=\
-	".\eddcdrm.h"\
-	".\eddstor.h"\
-	".\egagdrm.h"\
+	".\utils.hpp"\
+	{$(INCLUDE)}"ceddcdrm.h"\
+	{$(INCLUDE)}"ceddstor.h"\
+	{$(INCLUDE)}"segagdrm.h"\
 	
 # End Source File
 # Begin Source File
@@ -202,7 +223,7 @@ DEP_CPP_UTILS=\
 # PROP Default_Filter "h;hpp;hxx;hm;inl"
 # Begin Source File
 
-SOURCE=.\audiodb.hpp
+SOURCE=.\audiomgr.hpp
 # End Source File
 # Begin Source File
 

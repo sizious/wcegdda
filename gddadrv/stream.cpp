@@ -4,16 +4,17 @@
 // StreamThread
 DWORD WINAPI
 GDAudioDriver::StreamThreadProc( LPVOID lpParameter ) 
-{
+{	
 	GDAudioDriver *gdda = (GDAudioDriver*) lpParameter;
+	
+	DWORD dwThreadId = GetCurrentThreadId();
 	int currentContextIndex = gdda->gddaContextIndex;
 
 #ifdef DEBUG
-	DebugOutput(TEXT("[%d] StreamThread: Start!\n"), currentContextIndex);
+	DebugOutput( TEXT("StreamThread: (%d) [0x%08x] Start!\n"), currentContextIndex, dwThreadId );
 #endif
 	
 	DWORD fPlaying;
-    BYTE  bySilence = 0x80;
     BOOL  fSilence = FALSE;
     BYTE  *pbyBlock1;
     BYTE  *pbyBlock2;
@@ -42,12 +43,21 @@ GDAudioDriver::StreamThreadProc( LPVOID lpParameter )
 
             if ( fPlaying )
             {
+#ifdef DEBUG
+				DebugOutput( TEXT("StreamThread: (%d) [0x%08x] Playing in progress...\n"), currentContextIndex, dwThreadId );
+#endif				
                 // Find out where we currently are playing, and where we last wrote
                 gddaContext->errLast = gddaContext->pdsbBackground->GetCurrentPosition( &ibRead, &ibWrite );
                 if ( gdda->CheckError(TEXT(DSDEBUG_GET_CURRENT_POSITION)) )
 				{
                     return 0;
 				}
+#ifdef DEBUG
+				else
+				{
+					DebugOutput( TEXT("StreamThread: (%d) [0x%08x] GetCurrentPosition (ibRead: %d, ibWrite: %d)\n"), currentContextIndex, dwThreadId, ibRead, ibWrite );
+				}
+#endif
         
                 // Lock the next half of the sound buffer
                 gddaContext->errLast = gddaContext->pdsbBackground->Lock( ibWrite, cbToLock, (void **)&pbyBlock1, &nBytes1, (void **)&pbyBlock2, &nBytes2, 0 );
@@ -55,14 +65,23 @@ GDAudioDriver::StreamThreadProc( LPVOID lpParameter )
 				{
                     return 0;
 				}
-
+#ifdef DEBUG
+				else
+				{
+					DebugOutput( TEXT("StreamThread: (%d) [0x%08x] Lock (ibWrite: %d, cbToLock: %d, nBytes1: %d, nBytes2: %d)\n"), 
+						currentContextIndex, dwThreadId, ibWrite, cbToLock, nBytes1, nBytes2);
+				}
+#endif
                 // fSilence is true if we hit the end of the sound file on the
                 // last pass through here.  In that case, fill both blocks with "silence"
                 // and stop the sound from playing.
                 if ( fSilence )
                 {
-                    memset(pbyBlock1, bySilence, nBytes1);
-                    memset(pbyBlock2, bySilence, nBytes2);
+#ifdef DEBUG
+					DebugOutput( TEXT("StreamThread: (%d) [0x%08x] Silence is needed...\n"), currentContextIndex, dwThreadId);			
+#endif				
+                    memset(pbyBlock1, SILENCE_BYTE, nBytes1);
+                    memset(pbyBlock2, SILENCE_BYTE, nBytes2);
 
                     // After filling it, stop playing
                     gddaContext->errLast = gddaContext->pdsbBackground->Stop();
@@ -71,15 +90,21 @@ GDAudioDriver::StreamThreadProc( LPVOID lpParameter )
                 {
                     // Read the next chunk of bits from the sound file
                     ReadFile( gddaContext->hSoundFile, pbyBlock1, nBytes1, &cbRead, NULL );
+#ifdef DEBUG
+					DebugOutput( TEXT("StreamThread: (%d) [0x%08x] Reading next chunk for Block 1 (nBytes1: %d, cbRead: %1)...\n"), currentContextIndex, dwThreadId, nBytes1, cbRead);			
+#endif
                     if ( nBytes1 != cbRead )
                     {
                         // The file has less data than the size of the first block, so fill the
                         // remainder with silence - also fill the second block with silence
-                        memset(pbyBlock1 + cbRead, bySilence, nBytes1 - cbRead);
-                        memset(pbyBlock2, bySilence, nBytes2);
+                        memset(pbyBlock1 + cbRead, SILENCE_BYTE, nBytes1 - cbRead);
+                        memset(pbyBlock2, SILENCE_BYTE, nBytes2);
 
                         // Next time through, just play silence.
                         fSilence = TRUE;
+#ifdef DEBUG
+						DebugOutput( TEXT("StreamThread: (%d) [0x%08x] Silence will be necessary next time (from block 1)...\n"), currentContextIndex, dwThreadId);			
+#endif						
                     }
                     else
                     {
@@ -87,14 +112,20 @@ GDAudioDriver::StreamThreadProc( LPVOID lpParameter )
                         if ( nBytes2 )
                         {
                             ReadFile(gddaContext->hSoundFile, pbyBlock2, nBytes2, &cbRead, NULL);
+#ifdef DEBUG
+							DebugOutput( TEXT("StreamThread: (%d) [0x%08x] Reading chunk for block 2 (nBytes2: %d, cbRead: %1)...\n"), currentContextIndex, dwThreadId, nBytes2, cbRead);			
+#endif
                             if (nBytes2 != cbRead)
                             {
                                 // The file has less data than the size of the second block, so
                                 // fill the remainder with silence.
-                                memset(pbyBlock2 + cbRead, bySilence, nBytes2 - cbRead);
+                                memset(pbyBlock2 + cbRead, SILENCE_BYTE, nBytes2 - cbRead);
 
-                                // next time through, just play silence
+                                // next time through, just play silence.
                                 fSilence = TRUE;
+#ifdef DEBUG
+								DebugOutput( TEXT("StreamThread: (%d) [0x%08x] Silence will be necessary next time (from block 2)...\n"), currentContextIndex, dwThreadId);
+#endif
                             }
                         }
                     }
@@ -106,9 +137,18 @@ GDAudioDriver::StreamThreadProc( LPVOID lpParameter )
 				{
                     return 0;
 				}
+#ifdef DEBUG
+				else
+				{
+					DebugOutput( TEXT("StreamThread: (%d) [0x%08x] Unlock (nBytes1: %d, nBytes2: %d)\n"), currentContextIndex, dwThreadId, nBytes1, nBytes2);
+				}
+#endif				
             }
             else
             {
+#ifdef DEBUG
+				DebugOutput( TEXT("StreamThread: (%d) [0x%08x] Playing is NOT in progress!\n"), currentContextIndex, dwThreadId );
+#endif					
 				// Test if we are still playing the sound
 				if ( gddaContext->fPlayBackgroundSound )
 				{
@@ -117,25 +157,13 @@ GDAudioDriver::StreamThreadProc( LPVOID lpParameter )
 				}
             }
         }
-        else
-        {
-            // App doesn't have a sound to play - don't do anything
-			// This is happening when the stream is paused
-			if ( gdda->IsPaused() )
-			{
 #ifdef DEBUG
-				DebugOutput(TEXT("[%d] StreamThread is waiting to resume the process...\n"), currentContextIndex);
-#endif
-				if ( gddaContext->pdsbBackground )
-				{
-					gddaContext->pdsbBackground->Stop();
-					WaitForSingleObject( gddaContext->hSoundResumeEvent, INFINITE );
-				}
-#ifdef DEBUG			
-				DebugOutput(TEXT("[%d] StreamThread was waked up!\n"), currentContextIndex);
-#endif
-			}
-        }
+		else
+		{
+			DebugOutput( TEXT("StreamThread: (%d) [0x%08x] PlayBackgroundSound is false... nothing to play!\n"), currentContextIndex, dwThreadId );
+		}
+#endif			
+
     } // while
 
 	// If we are playing the sound, then we completed it.
@@ -148,7 +176,7 @@ GDAudioDriver::StreamThreadProc( LPVOID lpParameter )
 	gddaContext->fDonePlaying = true;
 
 #ifdef DEBUG
-	DebugOutput(TEXT("[%d] StreamThread: Done!\n"), currentContextIndex);	
+	DebugOutput( TEXT("StreamThread: (%d) [0x%08x] All is done!\n"), currentContextIndex, dwThreadId );
 #endif
 
 //	LeaveCriticalSection( &g_csStreamLoaderThread );

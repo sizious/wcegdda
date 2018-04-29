@@ -10,11 +10,12 @@
 // Arbitrary nice large number (must be divisible by 2)
 #define BUFFERSIZE 262144
 
-typedef struct _DIRECTSOUND_BUFFER {
+typedef struct _DIRECTSOUND_BUFFER_CONTEXT {
 	int nSamplesPerSec;
 	WORD wBitsPerSample;
 	IDirectSoundBuffer * pSoundBuffer;
-} DIRECTSOUND_BUFFER, *PDIRECTSOUND_BUFFER;
+	HANDLE hEventNotify;
+} DIRECTSOUND_BUFFER_CONTEXT, *PDIRECTSOUND_BUFFER_CONTEXT;
 
 typedef struct _AUDIO_TRACK {
 	int nTrackNumber;
@@ -27,18 +28,19 @@ typedef struct _AUDIO_TRACK {
 typedef struct _AUDIO_TRACK_CONTEXT {
 	int nTrackNumber;
 	HANDLE hTrackFile;
-	IDirectSoundBuffer * pSoundBuffer;
 	DWORD dwSoundDataOffset;
+	HANDLE hEventNotify;
+	IDirectSoundBuffer * pSoundBuffer;	
 } AUDIO_TRACK_CONTEXT, *PAUDIO_TRACK_CONTEXT;
 
-class GDAudioTrackDatabase
+class GDAudioTrackManager
 {
 private:
 	bool _isAudioTracksIndexed;	
 	int * hashtable;
 	int maxTrackNumber;
 
-	DIRECTSOUND_BUFFER ** _soundBufferList;
+	DIRECTSOUND_BUFFER_CONTEXT ** _soundBufferList;
 	size_t _soundBufferListUsed;
 	size_t _soundBufferListSize;
 	bool _isSoundBuffersCreated;
@@ -51,7 +53,7 @@ private:
 
 	TCHAR szDirectory[ MAX_PATH ];
 	
-	void ClearSoundBuffers();
+	void ClearSoundBuffers( bool isObjectDestroying );
 	void InitializeSoundBuffers();
 	IDirectSoundBuffer * CreateSoundBuffer( int nSamplesPerSec, WORD wBitsPerSample, DWORD dwBufferSize );
 	void ClearAudioTrackIndexes();
@@ -62,18 +64,22 @@ private:
 	int FindSoundBuffer( int nSamplesPerSec, WORD wBitsPerSample );
 
 	HANDLE GetTrackFileHandle( const int audioTrackIndex );
-	IDirectSoundBuffer * GetTrackSoundBuffer( const int audioTrackIndex );
+	DIRECTSOUND_BUFFER_CONTEXT * GetDirectSoundBufferContext( const int audioTrackIndex );
 
 	int FindAudioTrack( const int trackNumber );
 
+	bool PrepareForStreaming( IDirectSoundBuffer *pdsb, DWORD dwBufferSize, HANDLE *phEventNotify );
+
 public:
-	GDAudioTrackDatabase();
-	~GDAudioTrackDatabase();
+	GDAudioTrackManager();
+	~GDAudioTrackManager();
 	
 	size_t Count();
 	void Clear();
 	
 	bool GetAudioTrackContext( const int trackNumber, AUDIO_TRACK_CONTEXT * audioTrackContext );
+
+
 	
 	void Initialize( LPDIRECTSOUND pds );
 
