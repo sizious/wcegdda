@@ -6,13 +6,14 @@ GDAudioDriver::CleanerThreadProc( LPVOID lpParameter )
 {
 	GDAudioDriver * gdda = (GDAudioDriver *) lpParameter;
 
+	DWORD dwThreadId = GetCurrentThreadId();
 	int currentContextIndex = gdda->gddaContextIndex;
 
 #ifdef DEBUG
-	DebugOutput(TEXT("[%d] CleanerThread: Start!\n"), currentContextIndex);
+	DebugOutput( TEXT("CleanerThread: (%d) [0x%08x] Start!\n"), currentContextIndex, dwThreadId );
 #endif
 
-	EnterCriticalSection( &gdda->csThread );
+//	EnterCriticalSection( &gdda->csThread );
 
 	for( int contextIndex = 0; contextIndex < MAX_GDDA_CONTEXT; contextIndex++ )
 	{
@@ -42,10 +43,11 @@ GDAudioDriver::CleanerThreadProc( LPVOID lpParameter )
 	}
 
 	gdda->isCleaningFinished = true;
-	LeaveCriticalSection( &gdda->csThread );
+
+//	LeaveCriticalSection( &gdda->csThread );
 
 #ifdef DEBUG
-	DebugOutput(TEXT("[%d] CleanerThread: Done!\n"), currentContextIndex);
+	DebugOutput( TEXT("CleanerThread: (%d) [0x%08x] Done!\n"), currentContextIndex, dwThreadId );
 #endif
 
 	return 0;

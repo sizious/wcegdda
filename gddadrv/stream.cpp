@@ -167,6 +167,9 @@ GDAudioDriver::StreamThreadProc( LPVOID lpParameter )
     } // while
 
 	// If we are playing the sound, then we completed it.
+#ifdef DEBUG
+	DebugOutput( TEXT("StreamThread: (%d) [0x%08x] Stopping playback...\n"), currentContextIndex, dwThreadId );
+#endif
 	if ( gddaContext->pdsbBackground )
 	{
 		gddaContext->pdsbBackground->Stop();
@@ -176,7 +179,7 @@ GDAudioDriver::StreamThreadProc( LPVOID lpParameter )
 	gddaContext->fDonePlaying = true;
 
 #ifdef DEBUG
-	DebugOutput( TEXT("StreamThread: (%d) [0x%08x] All is done!\n"), currentContextIndex, dwThreadId );
+	DebugOutput( TEXT("StreamThread: (%d) [0x%08x] Done!\n"), currentContextIndex, dwThreadId );
 #endif
 
 //	LeaveCriticalSection( &g_csStreamLoaderThread );

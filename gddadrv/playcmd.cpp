@@ -94,7 +94,7 @@ GDAudioDriver::PlayCommandThreadProc( LPVOID lpParameter )
 #ifdef DEBUG
 				DebugOutput(TEXT("PlayCommandThread: (%d) [0x%08x] Waiting for StreamThread...\n"), currentContextIndex, dwThreadId);
 #endif
-				if ( gddaContext->hStreamThread )
+				if ( gddaContext->hStreamThread && !gdda->isInstanceDestroyed )
 				{
 					WaitForSingleObject( gddaContext->hStreamThread, INFINITE );
 					gddaContext->hStreamThread = NULL;

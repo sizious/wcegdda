@@ -221,7 +221,8 @@ WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPTSTR lpCmdLine, int nCm
 
 	if( Initialize() )
 	{	
-		ExecutePlayStrongStressTest();
+		ExecuteRandomStressTest();
+//		ExecutePlayStrongStressTest();
 //		Sleep( 5000 );
 
 //		PlayTrack( 99, 99, 1 );

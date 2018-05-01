@@ -7,9 +7,8 @@
 void
 GDAudioDriver::CleanThread( HANDLE hThread )
 {
-	if ( hThread )
+	if ( hThread != NULL )
 	{
-		ResumeThread( hThread );
 		WaitForSingleObject( hThread, INFINITE );
 		CloseHandle( hThread );
 	}
@@ -23,11 +22,11 @@ GDAudioDriver::IsThreadCreated( HANDLE hThread, DWORD dwThreadId )
 #ifdef DEBUG
 	if ( !result )
 	{
-		DebugOutput( TEXT("The requested thread was not created!\n") );
+		DebugOutput( TEXT("Thread [0x%08x] was not created!\n"), dwThreadId );
 	}
 	else
 	{
-		DebugOutput( TEXT("Thread created and now ready (dwThreadId: 0x%x).\n"), dwThreadId );
+		DebugOutput( TEXT("Thread [0x%08x] created and now ready.\n"), dwThreadId );
 	}
 #endif
 
@@ -127,17 +126,12 @@ GDAudioDriver::IsPaused()
 {
 	bool value = false;
 	
-	HANDLE hIOMutex = CreateMutex (NULL, FALSE, NULL);
+	HANDLE hIOMutex = CreateMutex( NULL, FALSE, NULL );
 	if ( hIOMutex )
 	{
 		WaitForSingleObject( hIOMutex, INFINITE );
-		GDDA_CONTEXT *gddaContext = this->GetCurrentContext();
+		GDDA_CONTEXT * gddaContext = this->GetCurrentContext();
 		value = ( gddaContext->fPaused && !gddaContext->fExiting && !gddaContext->fDonePlaying );
-
-#ifdef DEBUG
-//		DebugOutput(TEXT("IsPaused: %s\n"), value ? TEXT("YES") : TEXT("NO"));
-#endif
-
 		ReleaseMutex( hIOMutex);
 	}
 #ifdef DEBUG
